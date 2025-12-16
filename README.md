@@ -104,30 +104,36 @@ apple-on-virt/
 
 ## Kernel Extensions (Kexts)
 
-**Important**: ARM64 macOS emulation uses a fundamentally different approach than x86 Hackintosh.
+**Critical Finding**: Custom ARM64 Kexts are absolutely required for GUI and optimized I/O support.
 
-### ARM64 Emulation Approach (This Project)
+### The Situation
 
-For ARM64 macOS emulation in QEMU:
-- Kexts are bundled in the **prelinked kernelcache** from IPSW
-- No external Kext injection required
-- No OpenCore/Clover bootloader needed
-- 97+ Kexts load automatically from kernelcache
+The reference implementation boots to a bash shell (text-mode only) because:
 
-### NOT Applicable (x86 Hackintosh Only)
+1. **97 bundled Kexts from kernelcache** provide basic system functionality
+2. **4 custom Kexts are REQUIRED for:**
+   - GPU/Display rendering → GUI support
+   - Storage I/O optimization → Better disk performance
+   - SMC emulation → Power management
+   - Device detection → Proper hardware recognition
 
-The following Kexts are for x86 Hackintosh and do NOT apply to ARM64 emulation:
+### ARM64 Kexts Needed
 
-| Kext | Why Not Needed |
-|------|----------------|
-| Lilu.kext | x86 binary patching framework |
-| VirtualSMC.kext | SMC emulated in QEMU machine code |
-| WhateverGreen.kext | x86 GPU driver patches |
-| BlueToolFixup.kext | x86 Bluetooth patches |
+Instead of using x86 Hackintosh tools (Lilu, VirtualSMC, WhateverGreen), create custom ARM64 equivalents:
 
-For complete Kext documentation, see:
-- [Kext Configuration Guide](docs/spec/Kext_Configuration_ARM64.md)
-- [Kext Directory README](kexts/README.md)
+| Custom Kext | Purpose | Hackintosh Equivalent |
+|-------------|---------|----------------------|
+| ARM64QEMUGraphics.kext | Display/GPU support | WhateverGreen |
+| ARM64QEMUTRC.kext | SMC emulation | VirtualSMC |
+| ARM64QEMUStorage.kext | I/O optimization | NVMeFix |
+| ARM64QEMUDeviceStubs.kext | Device detection | (N/A - unique to QEMU) |
+
+**Key Difference**: x86 Hackintosh patches existing drivers; ARM64 emulation creates new drivers for QEMU devices.
+
+For detailed roadmap, see:
+- [Custom Kext Strategy](docs/spec/ARM64_Custom_Kext_Strategy.md)
+- [Development Roadmap](docs/spec/Custom_Kext_Development_Roadmap.md)
+- [Answer Document](docs/spec/Custom_Kext_Answer.md)
 
 ## Documentation
 

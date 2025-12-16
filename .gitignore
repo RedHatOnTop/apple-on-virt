@@ -73,8 +73,9 @@ output/*
 !output/.gitkeep
 
 # Local storage (IPSW and reference repos)
-local_storage/ipsw/*.ipsw
-local_storage/ipsw/*.dmg
+local_storage/**
+!local_storage/**/
+!local_storage/**/.gitkeep
 
 # Kext binaries (keep structure)
 kexts/*.kext/

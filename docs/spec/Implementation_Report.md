@@ -136,16 +136,28 @@ To boot actual macOS XNU kernel:
 
 ## Kext Configuration Summary
 
-**Key Finding**: Traditional Hackintosh Kexts (Lilu, VirtualSMC, WhateverGreen, BlueToolFixup) are NOT applicable to ARM64 macOS emulation.
+**Key Correction**: Traditional Hackintosh Kexts (Lilu, VirtualSMC, WhateverGreen, BlueToolFixup) are NOT directly applicable, BUT **custom ARM64 Kexts ARE required** for GUI and optimized I/O.
+
+### What the Prelinked Kernelcache Provides
+- 97 bundled Kexts for basic macOS functionality
+- Text-mode bash shell (as seen in reference implementation)
+- File system and kernel services
+
+### What Custom Kexts Must Provide
+1. **ARM64QEMUGraphics.kext** - GPU/Display rendering for GUI
+2. **ARM64QEMUTRC.kext** - SMC emulation for power management
+3. **ARM64QEMUStorage.kext** - Storage I/O optimization for QEMU
+4. **ARM64QEMUDeviceStubs.kext** - Device detection and matching
 
 | Aspect | ARM64 Emulation | x86 Hackintosh |
 |--------|-----------------|----------------|
-| Kext Source | Prelinked kernelcache | External injection |
+| Kext Source | Prelinked kernelcache + custom | External injection |
 | Bootloader | QEMU direct boot | OpenCore/Clover |
-| SMC Emulation | QEMU machine code | VirtualSMC.kext |
-| Required Kexts | 97 from kernelcache | Variable (10-20 external) |
+| SMC Emulation | Custom ARM64QEMUTRC.kext | VirtualSMC.kext |
+| GPU Support | Custom ARM64QEMUGraphics.kext | WhateverGreen.kext |
+| Binary Format | ARM64 Mach-O | x86_64 Mach-O |
 
-For complete Kext details, see `docs/spec/Kext_Configuration_ARM64.md`.
+For complete strategy, see `docs/spec/ARM64_Custom_Kext_Strategy.md`.
 
 ## Conclusion
 

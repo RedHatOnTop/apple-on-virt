@@ -2,31 +2,105 @@
 
 Last updated: 2025-12-16
 
-## Important: ARM64 vs x86 Kext Approach
+## CRITICAL CORRECTION: Custom Kexts ARE Required
 
-**This document clarifies the fundamental difference between ARM64 macOS emulation and x86 Hackintosh Kext handling.**
+**Previous assessment was incomplete.** While Kexts are bundled in the prelinked kernelcache, **additional custom Kexts ARE needed** for full functionality including GPU/display rendering and optimized I/O.
 
-### ARM64 macOS Emulation (Our Approach)
+### The Situation
 
-For ARM64 macOS emulation in QEMU/WSL:
+The reference implementation successfully boots to a bash shell, but this is **text-mode only** because:
 
-1. **Kexts are bundled in the prelinked kernelcache** - They are NOT injected externally
-2. **No OpenCore/Clover required** - Boot is handled by QEMU's Apple machine emulation
-3. **No Lilu/VirtualSMC needed** - These are x86 Hackintosh tools to fake Apple hardware
-4. **Kexts are loaded from kernelcache** extracted from IPSW files
+1. **Bundled Kexts from Kernelcache** provide basic system functionality
+2. **Custom Kexts are REQUIRED for:**
+   - GPU/Display rendering (to get GUI working)
+   - Storage I/O optimization for QEMU virtio-blk
+   - SMC emulation for power management
+   - Proper device detection for emulated hardware
 
-### x86 Hackintosh (Different Approach)
+### What Still Applies
 
-For x86 Hackintosh setups (NOT applicable to this project):
-- Lilu.kext, VirtualSMC.kext, WhateverGreen.kext are required
-- OpenCore/Clover bootloader injects Kexts
-- SMC emulation needed because x86 hardware lacks Apple SMC
+- Kexts ARE bundled in kernelcache (no external Hackintosh approach)
+- Traditional x86 Hackintosh Kexts (Lilu, VirtualSMC, WhateverGreen) cannot be used directly
+- BUT we must create ARM64 equivalents specifically for QEMU
 
----
+## Required Custom Kexts for Practical Use
 
-## Kexts in ARM64 Prelinked Kernelcache
+### 1. ARM64QEMUGraphics.kext
+**Purpose:** GPU/Display rendering (replaces WhateverGreen functionality)
 
-When we extract and boot macOS ARM64, the following Kexts are automatically loaded from the kernelcache:
+- Detect QEMU ramfb or virtio-gpu device
+- Implement IOFramebuffer protocol
+- Enable 2D rendering
+- Map display properties
+
+### 2. ARM64QEMUTRC.kext
+**Purpose:** SMC emulation (replaces VirtualSMC functionality)
+
+- Provide virtual System Management Controller
+- Handle thermal/power queries
+- Simulate hardware sensors
+- Support status indicators
+
+### 3. ARM64QEMUStorage.kext
+**Purpose:** Storage I/O optimization (replaces NVMeFix functionality)
+
+- Optimize virtio-blk device access
+- Fix timeout issues
+- Enable large I/O operations
+- Improve disk performance
+
+### 4. ARM64QEMUDeviceStubs.kext
+**Purpose:** Device detection and matching
+
+- Provide stubs for QEMU-specific devices
+- Handle device tree matching
+- Supply IO services
+- Enable automatic driver discovery
+
+## Key Differences From x86 Hackintosh
+
+| Aspect | x86 Hackintosh | ARM64 Emulation |
+|--------|----------------|-----------------|
+| Lilu | Runtime binary patching framework | Not applicable (different arch) |
+| Approach | Patch existing drivers | Create drivers for QEMU devices |
+| Device Detection | PCI device IDs | Device tree compatible strings |
+| Bootloader | OpenCore/Clover | QEMU direct boot |
+
+## Implementation Approach
+
+Instead of trying to use/patch existing drivers like Hackintosh, create **4 focused custom Kexts**:
+
+```
+ARM64QEMUSupport/
+├── ARM64QEMUGraphics.kext        (Display driver)
+├── ARM64QEMUTRC.kext             (SMC emulation)
+├── ARM64QEMUStorage.kext         (I/O optimization)
+└── ARM64QEMUDeviceStubs.kext     (Device matching)
+```
+
+## Boot Progression
+
+**Level 1 (Current - Text Mode):**
+- Kernel boots
+- File system works
+- bash prompt available
+- Serial console functional
+
+**Level 2 (With Graphics Kext):**
+- Framebuffer rendering
+- GUI elements visible
+- Basic display responsiveness
+
+**Level 3 (With Storage Kext):**
+- Optimized disk access
+- Better I/O performance
+- More responsive system
+
+**Level 4 (With All Kexts):**
+- WindowServer operational
+- Full GUI rendering
+- Input handling
+- Complete system functionality
 
 ### Core System Kexts (Loaded from Kernelcache)
 
