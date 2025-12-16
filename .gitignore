@@ -1,0 +1,107 @@
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+*.egg
+
+# QEMU Virtual Disk Images
+*.qcow2
+*.img
+*.vmdk
+*.vdi
+*.raw
+!scripts/*.img
+
+# macOS Installation Files
+*.ipsw
+*.dmg
+*.sparseimage
+
+# Large binary files
+*.iso
+
+# EFI Variables
+OVMF_VARS*.fd
+nvram.bin
+efivars.fd
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Output directory (except .gitkeep)
+output/*
+!output/.gitkeep
+
+# Local storage (IPSW and reference repos)
+local_storage/ipsw/*.ipsw
+local_storage/ipsw/*.dmg
+
+# Kext binaries (keep structure)
+kexts/*.kext/
+
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+secrets/
+.secrets
+
+# Node modules (if any helper tools)
+node_modules/
+
+# Coverage reports
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Compiled files
+*.o
+*.a
+*.dylib
+*.dll
+*.exe
+
+# Backup files
+*.bak
+*.backup

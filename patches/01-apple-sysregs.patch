@@ -1,0 +1,322 @@
+From: Apple-on-Virt Project
+Subject: [PATCH 1/3] target/arm: Add Apple-specific ARM64 system registers
+
+This patch adds stub implementations for Apple-specific ARM64 system
+registers required by XNU kernel. These registers are not part of
+the standard ARM architecture but are expected by macOS/Darwin.
+
+Registers added:
+- HID3, HID4, HID5, HID7, HID8, HID11 (Hardware Implementation Defined)
+- EHID1, EHID4, EHID10 (Extended HID)
+- LSU_ERR_STS (Load/Store Unit Error Status)
+- PMC0, PMC1, PMCR1, PMSR (Performance Monitor Control)
+- APRR_EL0, APRR_EL1 (Apple Page Region Protection)
+- CTRR registers (Configurable Text Region Range)
+- Other Apple-specific registers
+
+All registers are implemented as read/write storage that accept any
+value and return the last written value (or 0 as default).
+
+Signed-off-by: Apple-on-Virt Project
+---
+diff --git a/target/arm/cpu.h b/target/arm/cpu.h
+--- a/target/arm/cpu.h
++++ b/target/arm/cpu.h
+@@ -1000,6 +1000,45 @@ struct ArchCPU {
+     uint64_t reset_cbar;
+     uint32_t reset_auxcr;
+     bool reset_hivecs;
++
++    /* Apple-specific registers for XNU compatibility */
++    uint64_t apple_hid3;
++    uint64_t apple_hid4;
++    uint64_t apple_hid5;
++    uint64_t apple_hid7;
++    uint64_t apple_hid8;
++    uint64_t apple_hid11;
++    uint64_t apple_ehid1;
++    uint64_t apple_ehid4;
++    uint64_t apple_ehid10;
++    uint64_t apple_lsu_err_sts;
++    uint64_t apple_pmc0;
++    uint64_t apple_pmc1;
++    uint64_t apple_pmcr1;
++    uint64_t apple_pmsr;
++    uint64_t apple_l2actlr_el1;
++    /* Apple EL2 registers */
++    uint64_t apple_migsts_el1;
++    uint64_t apple_kernelkeylo_el1;
++    uint64_t apple_kernelkeyhi_el1;
++    uint64_t apple_vmsa_lock_el1;
++    uint64_t apple_aprr_el0;
++    uint64_t apple_aprr_el1;
++    uint64_t apple_ctrr_lock;
++    uint64_t apple_ctrr_a_lwr_el1;
++    uint64_t apple_ctrr_a_upr_el1;
++    uint64_t apple_ctrr_ctl_el1;
++    uint64_t apple_aprr_mask_en_el1;
++    uint64_t apple_aprr_mask_el0;
++    uint64_t apple_acc_ctrr_a_lwr_el2;
++    uint64_t apple_acc_ctrr_a_upr_el2;
++    uint64_t apple_acc_ctrr_ctl_el2;
++    uint64_t apple_acc_ctrr_lock_el2;
++    uint64_t apple_cyc_cfg;
++    uint64_t apple_cyc_ovrd;
++    uint64_t apple_ipi_sr;
++    uint64_t apple_upmcr0;
++    uint64_t apple_upmpcm;
+ 
+     /*
+      * Intermediate values used during property parsing.
+diff --git a/target/arm/helper.c b/target/arm/helper.c
+--- a/target/arm/helper.c
++++ b/target/arm/helper.c
+@@ -8800,6 +8800,228 @@ void define_arm_cp_regs(ARMCPU *cpu, const ARMCPRegInfo *regs)
+     }
+ }
+ 
++/*
++ * Apple-specific ARM64 system register implementations for XNU compatibility.
++ * These registers are implementation-defined and not part of standard ARM.
++ * They are required for macOS/Darwin XNU kernel to boot properly.
++ */
++
++/* Generic read/write functions for Apple registers */
++#define APPLE_SYSREG_FUNCS(name, field) \
++static uint64_t apple_##name##_read(CPUARMState *env, const ARMCPRegInfo *ri) \
++{ \
++    ARMCPU *cpu = env_archcpu(env); \
++    return cpu->field; \
++} \
++static void apple_##name##_write(CPUARMState *env, const ARMCPRegInfo *ri, \
++                                  uint64_t value) \
++{ \
++    ARMCPU *cpu = env_archcpu(env); \
++    cpu->field = value; \
++}
++
++/* Define read/write functions for all Apple registers */
++APPLE_SYSREG_FUNCS(hid3, apple_hid3)
++APPLE_SYSREG_FUNCS(hid4, apple_hid4)
++APPLE_SYSREG_FUNCS(hid5, apple_hid5)
++APPLE_SYSREG_FUNCS(hid7, apple_hid7)
++APPLE_SYSREG_FUNCS(hid8, apple_hid8)
++APPLE_SYSREG_FUNCS(hid11, apple_hid11)
++APPLE_SYSREG_FUNCS(ehid1, apple_ehid1)
++APPLE_SYSREG_FUNCS(ehid4, apple_ehid4)
++APPLE_SYSREG_FUNCS(ehid10, apple_ehid10)
++APPLE_SYSREG_FUNCS(lsu_err_sts, apple_lsu_err_sts)
++APPLE_SYSREG_FUNCS(pmc0, apple_pmc0)
++APPLE_SYSREG_FUNCS(pmc1, apple_pmc1)
++APPLE_SYSREG_FUNCS(pmcr1, apple_pmcr1)
++APPLE_SYSREG_FUNCS(pmsr, apple_pmsr)
++APPLE_SYSREG_FUNCS(migsts_el1, apple_migsts_el1)
++APPLE_SYSREG_FUNCS(kernelkeylo_el1, apple_kernelkeylo_el1)
++APPLE_SYSREG_FUNCS(kernelkeyhi_el1, apple_kernelkeyhi_el1)
++APPLE_SYSREG_FUNCS(vmsa_lock_el1, apple_vmsa_lock_el1)
++APPLE_SYSREG_FUNCS(aprr_el0, apple_aprr_el0)
++APPLE_SYSREG_FUNCS(aprr_el1, apple_aprr_el1)
++APPLE_SYSREG_FUNCS(ctrr_lock, apple_ctrr_lock)
++APPLE_SYSREG_FUNCS(ctrr_a_lwr_el1, apple_ctrr_a_lwr_el1)
++APPLE_SYSREG_FUNCS(ctrr_a_upr_el1, apple_ctrr_a_upr_el1)
++APPLE_SYSREG_FUNCS(ctrr_ctl_el1, apple_ctrr_ctl_el1)
++APPLE_SYSREG_FUNCS(aprr_mask_en_el1, apple_aprr_mask_en_el1)
++APPLE_SYSREG_FUNCS(aprr_mask_el0, apple_aprr_mask_el0)
++APPLE_SYSREG_FUNCS(acc_ctrr_a_lwr_el2, apple_acc_ctrr_a_lwr_el2)
++APPLE_SYSREG_FUNCS(acc_ctrr_a_upr_el2, apple_acc_ctrr_a_upr_el2)
++APPLE_SYSREG_FUNCS(acc_ctrr_ctl_el2, apple_acc_ctrr_ctl_el2)
++APPLE_SYSREG_FUNCS(acc_ctrr_lock_el2, apple_acc_ctrr_lock_el2)
++APPLE_SYSREG_FUNCS(cyc_cfg, apple_cyc_cfg)
++APPLE_SYSREG_FUNCS(cyc_ovrd, apple_cyc_ovrd)
++APPLE_SYSREG_FUNCS(ipi_sr, apple_ipi_sr)
++APPLE_SYSREG_FUNCS(upmcr0, apple_upmcr0)
++APPLE_SYSREG_FUNCS(upmpcm, apple_upmpcm)
++
++/*
++ * Apple system register definitions.
++ * These use implementation-defined encodings in the opc0=3 space.
++ * Register encodings are based on XNU kernel expectations.
++ */
++static const ARMCPRegInfo apple_cp_reginfo[] = {
++    /* HID registers - Hardware Implementation Defined */
++    { .name = "HID3", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 3, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid3_read, .writefn = apple_hid3_write },
++    { .name = "HID4", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 4, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid4_read, .writefn = apple_hid4_write },
++    { .name = "HID5", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 5, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid5_read, .writefn = apple_hid5_write },
++    { .name = "HID7", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 7, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid7_read, .writefn = apple_hid7_write },
++    { .name = "HID8", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 8, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid8_read, .writefn = apple_hid8_write },
++    { .name = "HID11", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 13, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_hid11_read, .writefn = apple_hid11_write },
++    /* EHID registers - Extended Hardware Implementation Defined */
++    { .name = "EHID1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 3, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ehid1_read, .writefn = apple_ehid1_write },
++    { .name = "EHID4", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 4, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ehid4_read, .writefn = apple_ehid4_write },
++    { .name = "EHID10", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 10, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ehid10_read, .writefn = apple_ehid10_write },
++    /* LSU Error Status */
++    { .name = "LSU_ERR_STS", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 3, .crn = 15, .crm = 0, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_lsu_err_sts_read, .writefn = apple_lsu_err_sts_write },
++    /* PMC registers - Performance Monitor Control */
++    { .name = "PMC0", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 2, .crn = 15, .crm = 0, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_pmc0_read, .writefn = apple_pmc0_write },
++    { .name = "PMC1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 2, .crn = 15, .crm = 1, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_pmc1_read, .writefn = apple_pmc1_write },
++    { .name = "PMCR1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 1, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_pmcr1_read, .writefn = apple_pmcr1_write },
++    { .name = "PMSR", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 13, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_pmsr_read, .writefn = apple_pmsr_write },
++    /* APRR/CTRR registers - Apple Page/Region Protection */
++    { .name = "MIGSTS_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 0, .opc2 = 4,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_migsts_el1_read, .writefn = apple_migsts_el1_write },
++    { .name = "KERNELKEYLO_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 1, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_kernelkeylo_el1_read, .writefn = apple_kernelkeylo_el1_write },
++    { .name = "KERNELKEYHI_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 1, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_kernelkeyhi_el1_read, .writefn = apple_kernelkeyhi_el1_write },
++    { .name = "VMSA_LOCK_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 1, .opc2 = 2,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_vmsa_lock_el1_read, .writefn = apple_vmsa_lock_el1_write },
++    { .name = "APRR_EL0", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_aprr_el0_read, .writefn = apple_aprr_el0_write },
++    { .name = "APRR_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_aprr_el1_read, .writefn = apple_aprr_el1_write },
++    { .name = "CTRR_LOCK", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 2,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ctrr_lock_read, .writefn = apple_ctrr_lock_write },
++    { .name = "CTRR_A_LWR_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 3,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ctrr_a_lwr_el1_read, .writefn = apple_ctrr_a_lwr_el1_write },
++    { .name = "CTRR_A_UPR_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 4,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ctrr_a_upr_el1_read, .writefn = apple_ctrr_a_upr_el1_write },
++    { .name = "CTRR_CTL_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 5,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ctrr_ctl_el1_read, .writefn = apple_ctrr_ctl_el1_write },
++    { .name = "APRR_MASK_EN_EL1", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 6,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_aprr_mask_en_el1_read, .writefn = apple_aprr_mask_en_el1_write },
++    { .name = "APRR_MASK_EL0", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 7,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_aprr_mask_el0_read, .writefn = apple_aprr_mask_el0_write },
++    /* ACC CTRR registers at EL2 */
++    { .name = "ACC_CTRR_A_LWR_EL2", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 11, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_acc_ctrr_a_lwr_el2_read, .writefn = apple_acc_ctrr_a_lwr_el2_write },
++    { .name = "ACC_CTRR_A_UPR_EL2", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 11, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_acc_ctrr_a_upr_el2_read, .writefn = apple_acc_ctrr_a_upr_el2_write },
++    { .name = "ACC_CTRR_CTL_EL2", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 11, .opc2 = 4,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_acc_ctrr_ctl_el2_read, .writefn = apple_acc_ctrr_ctl_el2_write },
++    { .name = "ACC_CTRR_LOCK_EL2", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 11, .opc2 = 5,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_acc_ctrr_lock_el2_read, .writefn = apple_acc_ctrr_lock_el2_write },
++    /* Cycle config registers */
++    { .name = "CYC_CFG", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 5, .crn = 15, .crm = 4, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_cyc_cfg_read, .writefn = apple_cyc_cfg_write },
++    { .name = "CYC_OVRD", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 5, .crn = 15, .crm = 5, .opc2 = 0,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_cyc_ovrd_read, .writefn = apple_cyc_ovrd_write },
++    /* IPI Status Register */
++    { .name = "IPI_SR", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 5, .crn = 15, .crm = 1, .opc2 = 1,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_ipi_sr_read, .writefn = apple_ipi_sr_write },
++    /* UPM registers */
++    { .name = "UPMCR0", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 7, .crn = 15, .crm = 0, .opc2 = 4,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_upmcr0_read, .writefn = apple_upmcr0_write },
++    { .name = "UPMPCM", .state = ARM_CP_STATE_AA64,
++      .opc0 = 3, .opc1 = 7, .crn = 15, .crm = 5, .opc2 = 4,
++      .access = PL1_RW, .type = ARM_CP_IO,
++      .readfn = apple_upmpcm_read, .writefn = apple_upmpcm_write },
++    REGINFO_SENTINEL
++};
++
++/*
++ * Register Apple-specific system registers with the CPU.
++ * This should be called during CPU initialization for XNU compatibility.
++ */
++void define_apple_cp_regs(ARMCPU *cpu)
++{
++    define_arm_cp_regs(cpu, apple_cp_reginfo);
++}
++
+ void modify_arm_cp_regs_with_opaque(ARMCPRegInfo *regs, void *opaque)
+ {
+     const ARMCPRegInfo *r;
+diff --git a/target/arm/cpu.c b/target/arm/cpu.c
+--- a/target/arm/cpu.c
++++ b/target/arm/cpu.c
+@@ -2490,6 +2490,14 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
+     /* Some features automatically imply others: */
+     arm_cpu_propagate_feature_implications(cpu);
+ 
++    /*
++     * Register Apple-specific system registers for XNU kernel compatibility.
++     * These are needed for macOS/Darwin to boot, as the kernel expects
++     * certain implementation-defined registers to be present.
++     */
++    extern void define_apple_cp_regs(ARMCPU *cpu);
++    define_apple_cp_regs(cpu);
++
+     if (arm_feature(env, ARM_FEATURE_AARCH64) &&
+         cpu->has_vfp != cpu->has_neon) {
+         /*

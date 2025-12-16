@@ -1,0 +1,3 @@
+# Output Directory
+# This directory contains build outputs, disk images, and logs.
+# Files in this directory are ignored by git (except this file).
