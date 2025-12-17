@@ -1,220 +1,494 @@
-# CPU arm64e Model
+# arm64e CPU Semantics
 
-This document specifies the `apple-arm64e` CPU model implementation requirements for Apple-on-Virt, designed to provide the precise arm64e semantics required by macOS arm64e.
+This document describes the apple-arm64e CPU model behavior, explaining why macOS accepts this CPU as valid and how semantic correctness is achieved.
 
-## CPU Model Definition
+## CPU Model Identity
 
-### Core Identity
-- **Name**: `apple-arm64e`
-- **Base Class**: Derived from QEMU `ARMCPU`
-- **Feature Flag**: Dedicated `ARM_CPU_FEATURE_ARM64E`
-- **Exclusivity**: Never shared with generic ARMv8 CPU implementations
+### What apple-arm64e Is
 
-### Design Philosophy
-The `apple-arm64e` CPU model implements **accuracy over compatibility**, focusing exclusively on the arm64e semantics required by macOS rather than general ARM64 functionality.
+The apple-arm64e CPU model is a purpose-built implementation of ARM64 instruction semantics as required by macOS arm64e binaries. It provides:
 
-## Essential ISA/ABI Requirements
+- Correct observable behavior for instructions executed during macOS boot.
+- Pointer authentication (PAC) semantics that satisfy kernel expectations.
+- Exception level management matching Apple Silicon behavior.
+- System register values that macOS recognizes as valid.
 
-### arm64e Calling Convention
-The CPU model must implement Apple's specific arm64e calling convention:
-- **Register Usage**: Precise register allocation for function calls
-- **Stack Alignment**: Apple-specific stack alignment requirements  
-- **Parameter Passing**: Correct handling of complex parameter types
-- **Return Value Handling**: Proper return value register usage
+### What apple-arm64e Is Not
 
-### PAC Instruction Decode
-Full support for Pointer Authentication Code (PAC) instructions:
-- **PACIA/PACIB**: Pointer authentication with address diversity
-- **AUTIA/AUTIB**: Pointer verification with address diversity  
-- **PACDA/PACDB**: Data pointer authentication
-- **AUTDA/AUTDB**: Data pointer verification
-- **XPACD/XPACL**: Pointer de-authentication instructions
+The apple-arm64e CPU model is not:
 
-### Pointer Authentication Semantics
-The CPU must provide meaningful PAC semantics that satisfy macOS kernel expectations:
-- **Key Management**: Proper PAC key register initialization and management
-- **Context Sensitivity**: Authentication behavior varies by execution context
-- **Failure Handling**: Appropriate exception generation on authentication failure
-- **Performance Characteristics**: Reasonable performance for bring-up purposes
+- A generic ARMv8-A or ARMv8.3-A implementation.
+- A cycle-accurate hardware simulator.
+- A complete implementation of all ARM architectural extensions.
+- A performance-equivalent representation of Apple Silicon.
 
-## Essential CPU State Requirements
+## Architectural Assumptions
 
-### PAC Key Registers
-Critical registers that must be properly initialized:
-- **APIAKeyLo/APIAKeyHi**: Instruction pointer authentication keys
-- **APIBKeyLo/APIBKeyHi**: Branch target authentication keys  
-- **APDAKeyLo/APDAKeyHi**: Data pointer authentication keys
-- **APDBKeyLo/APDBKeyHi**: Generic data pointer authentication keys
-- **APGAKeyLo/APGAKeyHi**: Generic authentication keys
+### macOS arm64e Expectations
+
+macOS arm64e binaries assume they are running on Apple Silicon with specific capabilities:
+
+**Instruction Set:**
+- Full AArch64 base instruction set.
+- Pointer authentication instructions (PAC).
+- Memory barrier and synchronization instructions.
+- System register access instructions.
+
+**Exception Model:**
+- Four exception levels (EL0, EL1, EL2, EL3).
+- Proper exception entry and return behavior.
+- Correct vector table layout and dispatch.
+- Interrupt handling through exception vectors.
+
+**Memory Model:**
+- Virtual memory with page table translation.
+- Memory attributes and permissions.
+- Cache coherency semantics (even if caches not modeled).
+- Proper address translation fault handling.
+
+**Security Features:**
+- Pointer authentication codes on function returns.
+- PAC key registers initialized and accessible.
+- Execution permission controls.
+- Privilege level enforcement.
+
+### Emulator Fulfillment
+
+The apple-arm64e CPU satisfies these assumptions by:
+
+- Implementing instruction semantics that produce correct results.
+- Managing exception levels with proper privilege transitions.
+- Providing MMU operations that maintain memory isolation.
+- Supporting PAC instructions with semantic correctness.
+
+## Required Semantics
+
+### Instruction Execution
+
+**Base Instructions:**
+
+All instructions in the AArch64 base instruction set execute with correct observable effects:
+
+- Arithmetic operations produce correct results.
+- Logical operations follow ARM specifications.
+- Memory operations access correct addresses.
+- Control flow instructions change execution appropriately.
+
+**PAC Instructions:**
+
+Pointer authentication instructions execute with semantic correctness:
+
+```
+PACIA, PACIB, PACDA, PACDB:
+    - Generate authenticated pointers.
+    - Result contains pointer with authentication code.
+    - Semantic: pointer is marked as "signed by this context."
+
+AUTIA, AUTIB, AUTDA, AUTDB:
+    - Verify and strip authentication codes.
+    - Semantic: pointer is verified as "signed by expected context."
+    - On semantic match: return original pointer.
+    - On semantic mismatch: fault or return poisoned pointer.
+
+XPACI, XPACD:
+    - Strip authentication codes without verification.
+    - Return original pointer value.
+```
+
+**System Instructions:**
+
+System instructions that affect CPU state execute correctly:
+
+- MSR/MRS for system register access.
+- Exception-generating instructions (SVC, HVC, SMC).
+- Memory barrier instructions (DMB, DSB, ISB).
+- Cache maintenance instructions (behavior may be stubbed).
 
 ### Exception Level Behavior
-Precise EL3/EL2/EL1 transition behavior expected by Apple Silicon:
-- **EL3 Context**: Secure monitor mode with proper register state
-- **EL2 Context**: Hypervisor mode with virtualization extensions
-- **EL1 Context**: Kernel mode with appropriate privilege levels
-- **Transition Semantics**: Correct behavior during exception level changes
 
-### Exception Vector Layout
-Apple-specific exception vector table structure:
-- **Vector Base Address**: Proper VBAR_ELx register values
-- **Vector Table Layout**: Correct exception handler entry points
-- **Interrupt Handling**: Proper IRQ/FIQ exception routing
-- **Synchronous Exceptions**: Correct synchronous exception handling
+**EL Transitions:**
 
-### System Register Values
-Critical system registers with Apple-expected values:
-- **Memory Management**: TTBR0_EL1, TTBR1_EL1, TCR_EL1
-- **Cache Control**: SCTLR_EL1, CLIDR_EL1, CCSIDR_EL1  
-- **Debug Registers**: MDSCR_EL1, DBGBCR/DBGWCR registers
-- **Performance Monitors**: PMCR_EL0, PMCNTENSET_EL0
+Exception level transitions follow ARM architecture rules:
 
-## CPU Initialization Flow
-
-### Realization Sequence
 ```
-cpu_realize()
- ├─ init_arm64e_features()      # Enable arm64e-specific CPU features
- ├─ init_pac_keys()             # Initialize all PAC key registers with valid values
- ├─ init_exception_levels()     # Set up EL3/EL2/EL1 contexts with Apple expectations
- ├─ init_system_registers()     # Configure system registers with Apple-expected values
- └─ expose_cpu_to_machine()     # Integrate CPU with apple-silicon-bringup machine
+Exception Entry:
+    - Save PSTATE to SPSR_ELx.
+    - Save return address to ELR_ELx.
+    - Set PSTATE to exception handler mode.
+    - Branch to vector table entry.
+
+Exception Return (ERET):
+    - Restore PSTATE from SPSR_ELx.
+    - Branch to address in ELR_ELx.
+    - Continue at target exception level.
 ```
 
-### Feature Initialization Details
-**init_arm64e_features()**:
-- Enable `ARM_CPU_FEATURE_ARM64E` flag
-- Configure PAC instruction support
-- Set up arm64e-specific memory management features
-- Initialize Apple-specific CPU capabilities
+**Supported Transitions:**
 
-**init_pac_keys()**:
-- Generate consistent but fake PAC keys
-- Initialize all key register pairs (Lo/Hi)
-- Ensure keys are valid for semantic PAC implementation
-- Maintain key consistency across CPU instances
+- EL0 to EL1 (syscall, exceptions).
+- EL1 to EL1 (kernel exceptions).
+- EL1 to EL2 (hypervisor calls, if used).
+- Returns from any higher EL to lower EL.
 
-**init_exception_levels()**:
-- Configure EL3 secure monitor context
-- Set up EL2 hypervisor environment  
-- Initialize EL1 kernel execution context
-- Establish proper exception level transitions
+**Boot-Time Transitions:**
 
-**init_system_registers()**:
-- Configure memory management registers for Apple layout
-- Set cache control registers for optimal performance
-- Initialize debug registers for kernel debugging support
-- Configure performance monitor registers
+During boot, the kernel may execute from EL2 and transition to EL1:
 
-## PAC Implementation Strategy
+- iBoot may start in EL3 or EL2.
+- Kernel typically runs in EL1.
+- Proper transition handling is critical for boot success.
 
-### Semantic PAC Approach
-For initial development phases, implement **semantic PAC** rather than full cryptographic PAC:
+### System Register Behavior
 
-#### Validity Semantics
-- "이 포인터는 유효하다" ("This pointer is valid")
-- All authenticated pointers are considered valid during bring-up
-- No actual cryptographic verification performed
-- Focus on correct instruction decode and register usage
+**Feature Identification Registers:**
 
-#### Context-Based Passing  
-- "이 컨텍스트에서는 항상 통과" ("Always passes in this context")
-- Authentication always succeeds in kernel bring-up context
-- Gradually introduce failure cases as bring-up stabilizes
-- Maintain semantic correctness while simplifying implementation
+These registers report CPU capabilities to software:
 
-### Implementation Phases
+```
+ID_AA64PFR0_EL1:
+    - Reports exception level support.
+    - Reports floating-point and SIMD support.
+    - Value must indicate EL0-EL2 support.
 
-#### Phase 1: Instruction Decode Only
-- Correct PAC instruction decoding
-- Proper register usage and side effects
-- All authentications succeed (semantic only)
-- Focus on kernel bring-up success
+ID_AA64PFR1_EL1:
+    - Reports additional features.
+    - PAC support must be indicated.
 
-#### Phase 2: Basic Context Awareness  
-- Different behavior in different execution contexts
-- Simple validity tracking for critical pointers
-- Introduction of controlled failure scenarios
-- Validation against genuine Apple Silicon behavior
+ID_AA64MMFR0_EL1:
+    - Reports memory model features.
+    - Physical address range.
+    - Granule size support.
 
-#### Phase 3: Full Semantic Implementation
-- Complete pointer validity tracking
-- Context-sensitive authentication behavior
-- Proper exception generation on failures
-- Performance optimization for research purposes
+ID_AA64ISAR1_EL1:
+    - Reports instruction set extensions.
+    - PAC algorithm support.
+```
 
-## Integration with Machine Model
+**Control Registers:**
 
-### CPU-Machine Interface
-The `apple-arm64e` CPU integrates tightly with the `apple-silicon-bringup` machine:
+Control registers affect CPU behavior:
 
-- **Memory Map Coordination**: CPU uses machine-provided memory layout
-- **Device Tree Integration**: CPU properties exposed in device tree
-- **Platform State Sharing**: CPU state synchronized with platform assumptions
-- **Boot Context Alignment**: CPU initialization aligned with Platform Boot Layer
+```
+SCTLR_EL1:
+    - MMU enable/disable.
+    - Cache enable/disable.
+    - Endianness control.
 
-### Hardware Identity Exposure
-CPU exposes Apple-consistent hardware identity:
-- **CPU Topology**: Correct core/thread topology for Apple SoC
-- **Feature Flags**: Accurate feature reporting matching Apple Silicon
-- **Performance Characteristics**: Reasonable performance modeling
-- **Power Management**: Basic power state support
+TCR_EL1:
+    - Translation control.
+    - Granule size selection.
+    - Address space size.
+
+TTBR0_EL1, TTBR1_EL1:
+    - Page table base addresses.
+    - ASID for address space tagging.
+```
+
+**PAC Key Registers:**
+
+PAC keys must be initialized and accessible:
+
+```
+APIAKey, APIBKey:
+    - Instruction pointer authentication keys.
+
+APDAKey, APDBKey:
+    - Data pointer authentication keys.
+
+APGAKey:
+    - Generic authentication key.
+```
+
+### Memory Management
+
+**Translation Tables:**
+
+The MMU performs address translation:
+
+- Parse translation table entries.
+- Apply correct granule size (4KB, 16KB, 64KB).
+- Generate translation faults on invalid entries.
+- Respect permission bits.
+
+**Memory Attributes:**
+
+Memory regions have attributes:
+
+- Device memory: non-cacheable, ordered.
+- Normal memory: cacheable, may reorder.
+- Execute permission: controls instruction fetch.
+- Read/write permission: controls data access.
+
+**Fault Handling:**
+
+Memory access faults generate exceptions:
+
+- Translation faults for unmapped addresses.
+- Permission faults for access violations.
+- Alignment faults for misaligned accesses.
+
+## Abstracted Behaviors
+
+### PAC Cryptographic Operations
+
+**What is abstracted:**
+
+The actual cryptographic computation for pointer authentication is abstracted. Real Apple Silicon uses QARMA or similar algorithms with hardware keys.
+
+**Semantic replacement:**
+
+Instead of cryptographic computation:
+
+```
+Sign Operation:
+    - Mark pointer as "authenticated" with context.
+    - Store context identifier in unused pointer bits.
+    - No cryptographic transformation.
+
+Verify Operation:
+    - Check that context identifier matches expected.
+    - If match: return original pointer.
+    - If mismatch: generate fault or poisoned pointer.
+```
+
+**Why this works:**
+
+macOS kernel code signs and verifies its own pointers. During boot:
+
+- Kernel signs return addresses on function entry.
+- Kernel verifies return addresses on function exit.
+- Context is consistent because same code signs and verifies.
+- Semantic verification always succeeds for well-formed code.
+
+**Limitations:**
+
+- Cannot detect actual pointer corruption.
+- Does not provide real security against attacks.
+- Sufficient for boot but not security validation.
+
+### Cycle-Accurate Timing
+
+**What is abstracted:**
+
+Instruction timing is not modeled:
+
+- No pipeline simulation.
+- No cache latency modeling.
+- No memory access timing.
+- No branch prediction effects.
+
+**Why this works:**
+
+macOS boot code does not depend on precise timing:
+
+- No busy-wait loops calibrated to cycle counts.
+- Timeout loops use timer registers, not cycle counting.
+- Performance monitoring not required for boot.
+
+**Limitations:**
+
+- Cannot measure actual performance.
+- Time-sensitive code may behave differently.
+- Performance counters return synthetic values.
+
+### Speculative Execution
+
+**What is abstracted:**
+
+Speculative execution is not modeled:
+
+- No branch prediction.
+- No speculative memory access.
+- No out-of-order execution effects.
+
+**Why this works:**
+
+Speculative execution affects performance and security side-channels but not functional correctness:
+
+- Correct program behavior is the same with or without speculation.
+- Security side-channels are not emulator requirements.
+
+**Limitations:**
+
+- Cannot study speculative execution vulnerabilities.
+- Performance characteristics differ from hardware.
+
+### Power Management
+
+**What is abstracted:**
+
+CPU power states are not implemented:
+
+- No deep sleep states.
+- No frequency scaling.
+- No power gating.
+
+**Why this works:**
+
+During boot, the CPU is fully powered:
+
+- Boot code assumes CPU is running.
+- Power management initialization happens later.
+- Emulator runs as if always at full power.
+
+**Limitations:**
+
+- Cannot study power management behavior.
+- Later kernel phases may encounter stubs.
+
+### Hardware Performance Counters
+
+**What is abstracted:**
+
+Performance monitoring registers return plausible but non-functional values:
+
+- Cycle counter returns monotonically increasing value.
+- Event counters return zero or synthetic values.
+- PMU configuration has no effect.
+
+**Why this works:**
+
+Boot code does not require performance data:
+
+- No boot-time performance optimization.
+- PMU used for debugging and profiling, not correctness.
+
+**Limitations:**
+
+- Cannot profile emulator performance accurately.
+- Performance analysis tools will not work correctly.
+
+## Known Limitations
+
+### Incomplete Instruction Coverage
+
+Not all ARMv8.x instructions may be implemented:
+
+- Advanced SIMD instructions beyond basic needs.
+- Cryptographic instructions (AES, SHA).
+- Optional architectural extensions.
+
+**Impact:**
+
+- Boot may succeed if unused.
+- Later userspace may encounter unimplemented instructions.
+- Can be extended incrementally as needed.
+
+### Simplified Exception Model
+
+Exception handling is functionally correct but simplified:
+
+- Nested exception handling may have edge cases.
+- Precise exception reporting may differ from hardware.
+- Debug exceptions may be incomplete.
+
+**Impact:**
+
+- Boot typically uses straightforward exception patterns.
+- Kernel debugging features may not work fully.
+
+### Memory Model Relaxation
+
+Memory ordering may be stricter than hardware:
+
+- Emulator may serialize more than necessary.
+- Barrier instructions always fully synchronize.
+
+**Impact:**
+
+- Correct but potentially slower than hardware.
+- Race conditions may manifest differently.
+
+### Single-Core Boot
+
+Multi-core behavior is not implemented for initial boot:
+
+- SMP initialization not supported in early phases.
+- Core startup sequences not implemented.
+
+**Impact:**
+
+- Boot proceeds on single core.
+- Later kernel SMP init will require extension.
+
+## Why macOS Accepts This CPU
+
+### Feature Register Compatibility
+
+macOS queries feature registers during boot:
+
+1. **ID_AA64PFR0_EL1** indicates EL support.
+   - Emulator reports EL0, EL1, EL2 support.
+   - Matches minimum Apple Silicon capabilities.
+
+2. **ID_AA64ISAR1_EL1** indicates PAC support.
+   - Emulator reports PAC implementation.
+   - Kernel enables PAC usage.
+
+3. **ID_AA64MMFR0_EL1** indicates memory capabilities.
+   - Emulator reports compatible memory model.
+   - Kernel configures page tables accordingly.
+
+### Behavioral Compatibility
+
+macOS validates CPU behavior during execution:
+
+1. **PAC Instructions Execute:**
+   - Kernel signs return addresses.
+   - Semantic PAC produces expected results.
+   - No PAC verification failures occur.
+
+2. **Exception Handling Works:**
+   - Syscalls transition correctly.
+   - Interrupts deliver to proper handlers.
+   - Exception return restores state.
+
+3. **Memory Operations Function:**
+   - Page table walks succeed.
+   - Memory protection enforced.
+   - Kernel memory model works.
+
+### Trust Context Alignment
+
+CPU state aligns with secure boot context:
+
+1. **PAC Keys Initialized:**
+   - Keys set before kernel entry.
+   - Consistent across boot stages.
+
+2. **Exception Level Appropriate:**
+   - Kernel enters at expected EL.
+   - Privilege transitions legal.
+
+3. **System Registers Consistent:**
+   - Control registers in valid state.
+   - No conflicting configuration.
 
 ## Validation Criteria
 
-### Functional Validation
-- PAC instructions decode and execute correctly
-- Exception levels transition properly
-- System registers contain expected values
-- Memory management functions correctly
-- Calling conventions work as expected
+### CPU Model Acceptance
 
-### Compatibility Validation  
-- macOS kernel recognizes CPU as genuine arm64e
-- PAC usage in kernel doesn't cause panics
-- Exception handling works correctly
-- Device drivers load without CPU-related errors
-- Performance is sufficient for bring-up purposes
+The CPU model is accepted by macOS when:
 
-### Accuracy Validation
-- CPU behavior matches Apple Silicon expectations
-- Platform assumptions are fulfilled accurately
-- Security model integration works correctly
-- Boot chain executes without CPU-related failures
+- Feature registers report compatible capabilities.
+- PAC instructions execute without faulting.
+- Exception handling delivers to correct vectors.
+- Memory operations access correct addresses.
+- System registers contain expected values.
 
-## Non-Goals Enforcement
+### Boot Progression
 
-The CPU model explicitly excludes:
-- **Generic ARM64 support**: Focus exclusively on arm64e semantics
-- **Multi-platform compatibility**: Target only Apple Silicon requirements  
-- **Performance optimization priority**: Accuracy over speed during bring-up
-- **Full cryptographic PAC**: Semantic PAC sufficient for research purposes
-- **Advanced power management**: Basic functionality only for bring-up
+The CPU model supports boot when:
 
-## Future Evolution
+- iBoot executes to completion on this CPU.
+- boot.efi executes to completion on this CPU.
+- Kernel begins initialization without CPU-related panics.
+- Early kernel execution proceeds normally.
 
-### Enhanced PAC Implementation
-As bring-up stabilizes, gradually enhance PAC implementation:
-- Introduce actual cryptographic verification
-- Add pointer validity tracking across contexts
-- Implement more sophisticated failure scenarios
-- Optimize performance for research workloads
+### Semantic Correctness
 
-### Additional Apple Features
-Implement additional Apple-specific CPU features:
-- Advanced power management states
-- Enhanced security features
-- Performance monitoring extensions
-- Debug and profiling capabilities
+The CPU model is semantically correct when:
 
-### Independence from QEMU
-Ultimate goal is CPU model independence from QEMU:
-- Custom CPU implementation with same interface
-- Enhanced accuracy for Apple Silicon specifics
-- Optimized performance for research purposes
-- Direct integration with custom emulator core
-
-## Conclusion
-
-The `apple-arm64e` CPU model represents the foundation of Apple-on-Virt's platform reconstruction approach. By implementing precise arm64e semantics rather than generic ARM64 functionality, the project enables legitimate research into macOS arm64e platform requirements.
-
-> This project does not try to make macOS run anywhere. It tries to make macOS believe it never left home.
+- All executed instructions produce correct visible results.
+- Abstracted behaviors do not cause incorrect program flow.
+- macOS code paths execute as they would on hardware.

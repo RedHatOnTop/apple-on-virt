@@ -1,151 +1,338 @@
 # Architecture Overview
 
-This document provides a comprehensive overview of the Apple-on-Virt architecture, designed to reconstruct the minimal Apple Silicon platform required for macOS arm64e to execute its unmodified boot chain.
+This document describes the full emulator architecture for Apple-on-Virt, a purpose-built Apple Silicon arm64e platform emulator.
 
-## Core Architecture Principles
+## Design Principles
 
-### Purpose-Built Design
-Apple-on-Virt is not a generic emulator but a **purpose-built platform reconstruction** focused exclusively on enabling macOS arm64e boot chain execution. Every architectural decision prioritizes accuracy over generality.
+### Purpose-Built Platform Reconstruction
 
-### Single Platform Focus
-The architecture supports exactly one platform: **apple-silicon-bringup**. This eliminates complexity from multi-platform support and ensures all resources focus on Apple Silicon platform assumptions.
+Apple-on-Virt reconstructs the specific platform context that macOS expects from Apple Silicon hardware. It is not a generic ARM64 emulator or virtual machine. Every component exists to satisfy a specific macOS platform assumption.
 
-### Boot Chain Integrity
-The complete boot chain **iBoot → boot.efi → kernelcache** must execute without binary modifications. The architecture provides the necessary platform context rather than patching binaries.
+### Single Configuration
+
+The architecture defines exactly one machine model and one CPU model. There are no variants, no user-configurable hardware options, and no fallback paths. This constraint ensures that all development effort serves the singular goal of macOS arm64e boot chain execution.
+
+### Layered Trust Synthesis
+
+Rather than attempting to prove trustworthiness through cryptographic verification, the emulator synthesizes the platform state that Apple's boot components expect to find after successful hardware trust establishment. The Platform Boot Layer provides this synthetic trust context.
 
 ## High-Level Architecture
 
 ```
-[ Host ]
- └─ Emulator Core (QEMU-derived)
-     ├─ apple-arm64e CPU model
-     ├─ apple-silicon-bringup machine
-     ├─ Platform Boot Layer
-     │    ├─ Apple-style Device Tree
-     │    ├─ Secure Boot Context
-     │    └─ Hardware State Injection
-     ├─ iBoot (unaltered)
-     ├─ boot.efi (unaltered)
-     └─ macOS kernelcache (arm64e)
++===========================================================================+
+|                              HOST SYSTEM                                   |
++===========================================================================+
+                                    |
+                                    v
++===========================================================================+
+|                         EMULATOR CORE                                      |
+|  +---------------------------------------------------------------------+  |
+|  |                    Platform Boot Layer                               |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  |  | Memory Map    |  | Device Tree    |  | Secure Boot Context     |  |  |
+|  |  | Synthesis     |  | Generation     |  | Synthesis               |  |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  +---------------------------------------------------------------------+  |
+|                                    |                                       |
+|                                    v                                       |
+|  +---------------------------------------------------------------------+  |
+|  |                    Machine Model                                     |  |
+|  |                 (apple-silicon-bringup)                              |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  |  | Platform      |  | Hardware       |  | Device                  |  |  |
+|  |  | Identity      |  | State Init     |  | Topology                |  |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  +---------------------------------------------------------------------+  |
+|                                    |                                       |
+|                                    v                                       |
+|  +---------------------------------------------------------------------+  |
+|  |                       CPU Model                                      |  |
+|  |                     (apple-arm64e)                                   |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  |  | arm64e ISA    |  | PAC Semantics  |  | Exception Level         |  |  |
+|  |  | Execution     |  | (Semantic)     |  | Management              |  |  |
+|  +---------------+  +----------------+  +-------------------------+  |  |
+|  +---------------------------------------------------------------------+  |
+|                                    |                                       |
+|                                    v                                       |
+|  +---------------------------------------------------------------------+  |
+|  |                     Device Layer                                     |  |
+|  |  +---------------+  +----------------+  +-------------------------+  |  |
+|  |  | Storage       |  | Serial/Console |  | Timer/Interrupt         |  |  |
+|  |  | Interface     |  | Interface      |  | Controllers             |  |  |
+|  +---------------+  +----------------+  +-------------------------+  |  |
+|  +---------------------------------------------------------------------+  |
++===========================================================================+
+                                    |
+                                    v
++===========================================================================+
+|                         GUEST EXECUTION                                    |
+|  +---------------------------------------------------------------------+  |
+|  |  iBoot (Unmodified) -> boot.efi (Unmodified) -> kernelcache (arm64e)|  |
+|  +---------------------------------------------------------------------+  |
++===========================================================================+
 ```
 
-### Key Architectural Decisions
-
-#### No UEFI/BIOS/SBSA Concepts
-Traditional virtualization concepts like UEFI, BIOS, and SBSA are explicitly excluded. Apple Silicon has its own boot architecture that must be recreated authentically.
-
-#### Platform Boot Layer as Foundation
-The Platform Boot Layer serves as the synthetic environment that satisfies Apple Silicon boot and security assumptions before macOS execution begins.
-
-#### Dedicated CPU Model
-The `apple-arm64e` CPU model is never shared with generic ARMv8 implementations, ensuring arm64e semantics are properly implemented.
-
-## Component Architecture
-
-### Emulator Core (QEMU-derived)
-- Provides hardware virtualization foundation
-- Extended with Apple-specific components
-- Temporary dependency - ultimate goal is independence
-
-### apple-silicon-bringup Machine
-- Single machine implementation inheriting from QEMU `MachineClass`
-- Represents a "fake Apple SoC platform" rather than virtual board
-- Responsible for platform-level initialization and state management
-
-### apple-arm64e CPU Model  
-- Derived from QEMU `ARMCPU` with dedicated `ARM_CPU_FEATURE_ARM64E`
-- Implements arm64e calling conventions and PAC semantics
-- Provides essential CPU state expected by macOS kernel
+## Component Responsibilities
 
 ### Platform Boot Layer
-- Synthetic environment satisfying Apple Silicon assumptions
-- Composed of Apple-style Device Tree, Secure Boot Context, and Hardware State Injection
-- Bridges the gap between emulation environment and Apple Silicon expectations
 
-## Initialization Flow
+The Platform Boot Layer is the foundational component that establishes the synthetic hardware environment before any macOS code executes.
 
-### Machine Initialization Sequence
+**Responsibilities:**
+
+- Construct Apple-style memory map with region types matching Apple Silicon conventions.
+- Generate Apple-format device tree containing platform identity, CPU description, and boot arguments.
+- Synthesize secure boot context state that indicates successful trust chain validation.
+- Initialize hardware identity registers with consistent values.
+- Prepare the execution environment for iBoot entry.
+
+**Boundaries:**
+
+- Does not execute any macOS code.
+- Does not modify any boot binaries.
+- Does not provide firmware services after boot handoff.
+- Completes before iBoot begins execution.
+
+### Machine Model (apple-silicon-bringup)
+
+The machine model represents the complete Apple Silicon platform as a single, fixed configuration.
+
+**Responsibilities:**
+
+- Instantiate the Platform Boot Layer and coordinate initialization sequence.
+- Create the apple-arm64e CPU instance and connect it to the memory system.
+- Define the physical address space layout for DRAM, MMIO, and reserved regions.
+- Generate and place the device tree at the expected memory location.
+- Initialize platform-level registers and state.
+- Load the iBoot binary and set the CPU entry point.
+- Expose emulated devices with Apple-compatible interfaces.
+
+**Boundaries:**
+
+- Does not support multiple configurations.
+- Does not provide user-facing hardware selection.
+- Does not implement standard ARM platform interfaces (no SBSA, no UEFI).
+- Does not dynamically adjust to guest requirements.
+
+### CPU Model (apple-arm64e)
+
+The CPU model implements arm64e instruction semantics as required by macOS.
+
+**Responsibilities:**
+
+- Execute arm64e instructions with correct observable behavior.
+- Implement pointer authentication (PAC) instructions with semantic correctness.
+- Manage exception levels (EL3, EL2, EL1, EL0) with proper transitions.
+- Provide system register access with macOS-expected values.
+- Handle exceptions and route interrupts through the correct vectors.
+- Support memory management unit operations for translation and protection.
+
+**Boundaries:**
+
+- Does not provide performance parity with hardware.
+- Does not implement speculative execution or branch prediction.
+- Does not model power states or frequency scaling.
+- Does not support non-arm64e instruction sets.
+
+### Device Layer
+
+The device layer exposes hardware interfaces that macOS expects to find on Apple Silicon.
+
+**Responsibilities:**
+
+- Present storage devices with Apple-compatible interfaces.
+- Provide serial console for kernel debugging output.
+- Implement timer and interrupt controllers for scheduling.
+- Report device presence through device tree nodes.
+
+**Boundaries:**
+
+- Does not expose transport-layer details to the guest.
+- Does not implement Linux-style device discovery.
+- Does not provide generic virtio device identity.
+- Does not support hotplug or dynamic device changes.
+
+## Data Flow
+
+### Initialization Flow
+
 ```
-machine_init()
- ├─ init_memory_map()           # Apple-style memory layout
- ├─ init_apple_cpu()            # apple-arm64e CPU setup  
- ├─ init_platform_state()       # Platform identity and state
- ├─ generate_apple_device_tree() # Apple-specific device tree
- ├─ load_iboot()                # Load unaltered iBoot
- └─ handoff_to_iboot()          # Transfer control to Apple boot chain
+1. Emulator Start
+       |
+       v
+2. Machine Model Initialization
+       |
+       +---> Platform Boot Layer Setup
+       |         |
+       |         +---> Memory Map Construction
+       |         +---> Device Tree Generation
+       |         +---> Secure Boot Context Synthesis
+       |
+       +---> CPU Model Creation
+       |         |
+       |         +---> Register Initialization
+       |         +---> PAC Key Setup
+       |         +---> Exception Vector Configuration
+       |
+       +---> Device Layer Setup
+       |         |
+       |         +---> Storage Device Registration
+       |         +---> Console Device Registration
+       |         +---> Timer/Interrupt Registration
+       |
+       v
+3. iBoot Binary Loading
+       |
+       v
+4. CPU Entry Point Set to iBoot
+       |
+       v
+5. Emulation Begins
 ```
 
-### CPU Initialization Sequence
+### Control Flow During Boot
+
 ```
-cpu_realize()
- ├─ init_arm64e_features()      # Enable arm64e-specific features
- ├─ init_pac_keys()             # Initialize PAC key registers
- ├─ init_exception_levels()     # Set up EL3/EL2/EL1 contexts
- ├─ init_system_registers()     # Configure Apple-expected registers
- └─ expose_cpu_to_machine()     # Integrate CPU with machine model
+Platform Boot Layer      Machine Model      CPU Model      Guest Code
+        |                     |                |               |
+        |---(State Synth)---->|                |               |
+        |                     |---(CPU Init)-->|               |
+        |                     |                |               |
+        |                     |---(Entry Pt)-->|               |
+        |                     |                |---(Execute)-->|
+        |                     |                |               | iBoot
+        |                     |                |<--(DevTree)---|
+        |                     |                |               |
+        |                     |                |---(Execute)-->|
+        |                     |                |               | boot.efi
+        |                     |                |               |
+        |                     |                |---(Execute)-->|
+        |                     |                |               | kernelcache
 ```
 
-## Design Philosophy Implementation
+### Memory Access Flow
 
-### Environment Over Patching
-Instead of modifying macOS binaries, the architecture recreates the exact platform environment macOS expects. This preserves binary integrity while enabling execution.
+```
+Guest Code (iBoot/boot.efi/kernel)
+        |
+        | Virtual Address
+        v
+   CPU Model (MMU)
+        |
+        | Physical Address
+        v
+   Machine Model (Address Decode)
+        |
+        +---> DRAM Region ---> Memory Backend
+        |
+        +---> MMIO Region ---> Device Layer
+        |
+        +---> Reserved Region ---> Handled/Ignored
+```
 
-### Reproduction Over Bypass  
-Security mechanisms are not disabled but recreated in a way that satisfies macOS requirements within emulation constraints. This maintains research integrity.
+## Component Interactions
 
-### Accuracy Over Generality
-The single-platform, single-CPU approach ensures maximum accuracy for Apple Silicon platform reconstruction rather than attempting to support multiple configurations.
+### Platform Boot Layer to Machine Model
 
-### Boot Chain Respect
-The architecture treats the Apple boot chain as inviolable, providing only the platform context needed for successful execution without modification.
+The Platform Boot Layer provides synthesized state to the Machine Model:
 
-### One Machine, One CPU
-The exclusive focus on `apple-silicon-bringup` machine and `apple-arm64e` CPU eliminates complexity and ensures all development effort targets the specific requirements of macOS arm64e.
+- Memory map definition with region boundaries and attributes.
+- Device tree blob ready for placement in guest memory.
+- Secure boot context values for platform registers.
+- Hardware identity values for consistent reporting.
 
-## Research and Development Phases
+### Machine Model to CPU Model
 
-### Phase 0: Platform Assumptions Research
-- Comprehensive analysis of Apple Silicon boot requirements
-- Documentation of platform assumptions made by macOS arm64e
-- Reverse engineering of Apple-specific device tree structure
+The Machine Model configures the CPU Model:
 
-### Phase 1: Headless Kernel Bring-up  
-- Implementation of Platform Boot Layer components
-- Development of apple-arm64e CPU model with semantic PAC
-- Validation of unaltered boot chain execution
+- Initial register values including stack pointer and program counter.
+- Memory system connection for address translation.
+- Interrupt controller binding for exception routing.
+- Platform-specific CPU feature configuration.
 
-### Phase 2: Minimal Userspace Viability
-- Expansion of device model exposure
-- Validation of security model adaptation
-- Basic system service operation
+### CPU Model to Device Layer
 
-### Phase 3: Display + I/O Stabilization
-- Full GUI support implementation
-- Stable device interaction
-- Performance optimization
+The CPU Model interacts with devices through memory-mapped I/O:
 
-### Phase 4: Architecture Refinement
-- Elimination of QEMU dependencies
-- Enhanced platform reconstruction accuracy
-- Production-ready stability
+- Device register reads and writes via physical addresses.
+- Interrupt assertions from devices to CPU.
+- DMA operations (device-initiated memory access).
 
-## Non-Goals Enforcement
+### Device Layer to Guest
 
-The architecture explicitly excludes:
-- Generic ARM64 emulation capabilities
-- Multi-OS support infrastructure  
-- DRM/App Store functionality
-- Performance optimization at the expense of accuracy
-- User-friendly VM convenience features
+Devices appear to the guest through:
 
-## Future Evolution
+- Device tree nodes describing device presence and properties.
+- Memory-mapped register interfaces at fixed addresses.
+- Interrupt lines connected to the interrupt controller.
 
-While currently QEMU-derived, the ultimate architectural goal is a self-contained emulator that eliminates external dependencies while maintaining the same platform reconstruction accuracy.
+## Trust Model
 
-The modular design allows for gradual replacement of QEMU components with custom implementations while preserving the core architectural principles.
+### Synthesized Trust
 
-## Conclusion
+The emulator does not cryptographically verify boot components. Instead, it synthesizes the platform state that would exist after successful verification on genuine hardware.
 
-This architecture represents a paradigm shift in macOS emulation research. By focusing on **platform assumption fulfillment** rather than **binary modification**, Apple-on-Virt creates a sustainable foundation for legitimate Apple Silicon platform research.
+**Trust Assumptions:**
 
-> This project does not try to make macOS run anywhere. It tries to make macOS believe it never left home.
+- The Platform Boot Layer sets secure boot context to indicate trusted state.
+- Boot components execute without verification because the platform reports trusted status.
+- The kernel trusts platform-reported security state.
+
+**Trust Boundaries:**
+
+- The emulator trusts the binaries provided to it.
+- The guest trusts the platform state synthesized by the emulator.
+- No runtime verification occurs between host and guest.
+
+### Security Semantics Preservation
+
+While cryptographic verification is not performed, security semantics are preserved:
+
+- PAC operations execute with correct instruction behavior.
+- Exception levels maintain proper privilege separation.
+- Memory protection attributes are enforced by the MMU.
+- Secure boot context indicates enabled (not bypassed) security.
+
+## Scalability Across macOS Versions
+
+### Version-Agnostic Design
+
+The architecture achieves version independence through platform fidelity:
+
+- Device tree format follows Apple conventions stable across releases.
+- Platform identity values remain consistent.
+- CPU feature reporting matches expected Apple Silicon capabilities.
+- Secure boot context represents standard trusted state.
+
+### Adaptation Points
+
+When a new macOS version introduces new platform requirements:
+
+- Platform Boot Layer may require additional state synthesis.
+- Device tree may need new properties or nodes.
+- CPU model may need additional register implementations.
+
+These are additive changes to platform fidelity, not version-specific patches.
+
+## Explicit Non-Architecture
+
+The following are explicitly not part of the architecture:
+
+- **BIOS/UEFI firmware interfaces**: Apple Silicon does not use these standards.
+- **SBSA/Server Base System Architecture**: Not applicable to Apple platforms.
+- **Generic ARM64 machine definitions**: Would introduce incorrect platform assumptions.
+- **PCI bus topology**: Apple Silicon uses proprietary interconnects.
+- **ACPI tables**: Apple uses device tree exclusively.
+- **VirtIO device identity**: Devices present Apple-compatible interfaces.
+
+## Quality Criteria
+
+A new contributor should understand from this document:
+
+1. The emulator has four main components: Platform Boot Layer, Machine Model, CPU Model, and Device Layer.
+2. Each component has specific responsibilities and explicit boundaries.
+3. Data flows from Platform Boot Layer through Machine Model to CPU Model during initialization.
+4. Control flows from CPU Model to guest code after initialization completes.
+5. Trust is synthesized rather than verified, preserving security semantics without cryptographic proof.
+6. The architecture supports multiple macOS versions through platform fidelity, not version-specific code.
