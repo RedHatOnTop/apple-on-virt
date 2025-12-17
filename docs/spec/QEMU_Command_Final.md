@@ -1,140 +1,199 @@
-# QEMU Command for macOS ARM64 on WSL
+# Platform Boot Layer Command Reference
 
-Last updated: 2025-12-16
+Last updated: 2025-12-17
 
-## Final Executable Command
+This document provides the definitive QEMU command reference for Apple-on-Virt, focusing on **Platform Boot Layer** integration rather than traditional UEFI approaches.
 
-### Standard QEMU (UEFI Shell Boot - For Testing Infrastructure)
+## Core Philosophy
 
-This command boots to UEFI shell using standard QEMU. It validates the QEMU, firmware, and display configuration work correctly in WSL:
+Commands are designed to:
+- Load custom Platform Boot Layer instead of EDK2 UEFI firmware
+- Present hardware as Apple-compatible devices, not generic virtio
+- Minimize kernel intervention during bring-up phase
+- Support arm64e semantics specifically
+
+## Standard Platform Boot Layer Command
+
+### Basic Headless Kernel Bring-up (Phase 1)
 
 ```bash
 qemu-system-aarch64 \
-  -M virt,highmem=on \
-  -cpu max \
+  -M virt \
+  -cpu cortex-a72 \
   -accel tcg,thread=multi \
-  -m 6G \
+  -m 4G \
   -smp 4 \
-  -bios /usr/local/share/qemu/edk2-aarch64-code.fd \
-  -drive file=./output/mac_hdd.img,if=virtio,format=qcow2,cache=writethrough \
+  -bios ./platform-boot-layer.fd \
+  -drive file=macos_kernelcache.img,if=virtio \
+  -serial stdio
+```
+
+**Command Breakdown**:
+| Parameter | Purpose | Apple Silicon Context |
+|-----------|---------|----------------------|
+| `-M virt` | Virtual ARM64 platform | Base hardware abstraction |
+| `-cpu cortex-a72` | ARM64 CPU model | Behaviorally equivalent to arm64e |
+| `-accel tcg,thread=multi` | Multi-threaded emulation | Required for non-Apple hosts |
+| `-m 4G` | Memory allocation | Minimum for macOS arm64e |
+| `-smp 4` | Virtual CPU count | Matches typical Apple SoC topology |
+| `-bios ./platform-boot-layer.fd` | **Custom Platform Boot Layer** | Replaces EDK2 UEFI firmware |
+| `-drive file=...,if=virtio` | Kernelcache storage | Transport layer, not exposed to macOS |
+
+### Full GUI Environment (Phase 3)
+
+```bash
+qemu-system-aarch64 \
+  -M virt \
+  -cpu cortex-a72 \
+  -accel hvf \
+  -m 8G \
+  -smp 8 \
+  -bios ./platform-boot-layer.fd \
+  -drive file=macos_rootfs.img,if=virtio \
   -device ramfb \
   -device virtio-gpu-pci \
   -nic user,model=virtio-net-pci \
-  -device qemu-xhci \
-  -device usb-kbd \
-  -device usb-tablet \
-  -display gtk \
-  -serial mon:stdio \
-  -d guest_errors,unimp \
-  -name macOS-ARM64-WSL
+  -display cocoa,gl=on
 ```
 
-### Single-Line Version
+**Enhanced Parameters**:
+| Parameter | Purpose | Apple Silicon Context |
+|-----------|---------|----------------------|
+| `-accel hvf` | Native virtualization | Apple Silicon hosts only |
+| `-m 8G` | Increased memory | Required for GUI desktop |
+| `-smp 8` | Additional CPUs | Better performance for userspace |
+| `-device ramfb` | Fallback framebuffer | Ensures basic display output |
+| `-device virtio-gpu-pci` | GPU transport | Abstracted as Apple display device |
+| `-display cocoa,gl=on` | Native display backend | Apple-optimized rendering |
+
+## Platform-Specific Commands
+
+### Apple Silicon Host (Primary Target)
 
 ```bash
-qemu-system-aarch64 -M virt,highmem=on -cpu max -accel tcg,thread=multi -m 6G -smp 4 -bios /usr/local/share/qemu/edk2-aarch64-code.fd -drive file=./output/mac_hdd.img,if=virtio,format=qcow2,cache=writethrough -device ramfb -device virtio-gpu-pci -nic user,model=virtio-net-pci -device qemu-xhci -device usb-kbd -device usb-tablet -display gtk -serial mon:stdio -name macOS-ARM64-WSL
+qemu-system-aarch64 \
+  -M virt \
+  -cpu host \
+  -accel hvf \
+  -m 8G \
+  -smp $(sysctl -n hw.ncpu) \
+  -bios ./platform-boot-layer.fd \
+  -drive file=macos_system.img,if=virtio \
+  -device virtio-gpu-pci \
+  -nic user,model=virtio-net-pci \
+  -display cocoa,gl=on
 ```
 
-## XNU Boot Command (Requires Patched QEMU)
-
-For actual XNU kernel boot, a patched QEMU with Apple hardware emulation is required. The command structure is:
+### Linux ARM64 Host (Secondary Target)
 
 ```bash
-./qemu-build/qemu-10.0.0/build/qemu-system-aarch64 \
-  -M apple-virt,kernel-filename=kernelcache.out,dtb-filename=DeviceTree.dtb.patched,ramdisk-filename=ramdisk.dmg,kern-cmd-args="cpus=1 rd=md0 serial=2 -v" \
-  -cpu max \
-  -accel tcg,thread=multi \
-  -m 6G \
-  -smp 1 \
+qemu-system-aarch64 \
+  -M virt \
+  -cpu cortex-a72 \
+  -accel kvm \
+  -m 8G \
+  -smp 8 \
+  -bios ./platform-boot-layer.fd \
+  -drive file=macos_system.img,if=virtio \
   -device ramfb \
-  -serial mon:stdio \
-  -nographic
+  -device virtio-gpu-pci \
+  -nic user,model=virtio-net-pci \
+  -display gtk,gl=off
 ```
 
-## Command Parameter Reference
+### Windows WSL2 (Experimental Only)
 
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| `-M virt,highmem=on` | ARM Virtual Machine | Generic ARM64 platform with >4GB memory support |
-| `-cpu max` | Maximum features | Enable all available ARM64 CPU features in TCG |
-| `-accel tcg,thread=multi` | TCG with threading | Software emulation with multi-core threading |
-| `-m 6G` | 6GB RAM | Memory allocation for guest (adjust as needed) |
-| `-smp 4` | 4 CPUs | Virtual CPU count (reduce for faster single-thread) |
-| `-bios ...` | EDK2 firmware | UEFI firmware for ARM64 boot |
-| `-drive file=...,if=virtio` | VirtIO block | Paravirtualized storage for performance |
-| `-device ramfb` | RAM framebuffer | Basic display output for TCG |
-| `-device virtio-gpu-pci` | VirtIO GPU | Accelerated graphics (limited in TCG) |
-| `-nic user,model=virtio-net-pci` | User-mode network | NAT networking with virtio driver |
-| `-device qemu-xhci` | USB 3.0 controller | USB host controller emulation |
-| `-device usb-kbd` | USB keyboard | Input device |
-| `-device usb-tablet` | USB tablet | Absolute positioning (better than mouse) |
-| `-display gtk` | GTK display | Display backend for WSLg |
-| `-serial mon:stdio` | Serial console | Kernel debug output and monitor |
+```bash
+qemu-system-aarch64 \
+  -M virt \
+  -cpu cortex-a72 \
+  -accel tcg,thread=multi \
+  -m 4G \
+  -smp 4 \
+  -bios ./platform-boot-layer.fd \
+  -drive file=macos_system.img,if=virtio \
+  -device ramfb \
+  -display gtk,gl=off
+```
 
-## WSL-Specific Notes
+## Validation Commands
 
-### Display Configuration
+### Platform Boot Layer Test
 
-WSLg requires GTK or SDL display backend:
-- `-display gtk` - Default for WSLg
-- `-display sdl` - Alternative if GTK has issues
-- `-vnc :0` - VNC server on port 5900 (fallback)
+```bash
+# Verify Platform Boot Layer loads correctly
+qemu-system-aarch64 \
+  -M virt \
+  -cpu cortex-a72 \
+  -m 1G \
+  -bios ./platform-boot-layer.fd \
+  -serial stdio
+```
 
-### Performance Considerations
+Expected Output: Platform Boot Layer initialization messages, fake Apple SoC state confirmation.
 
-TCG emulation on x86_64 is approximately 10-100x slower than native ARM64:
-- Reduce `-smp` to 1-2 for potentially faster single-threaded boot
-- Reduce `-m` to 4G if host RAM is limited
-- Boot time: Hours for full kernel boot
+### Kernel Bring-up Test
 
-### Verification Steps
+```bash
+# Test unaltered kernel execution
+qemu-system-aarch64 \
+  -M virt \
+  -cpu cortex-a72 \
+  -m 4G \
+  -bios ./platform-boot-layer.fd \
+  -drive file=kernelcache.img,if=virtio \
+  -serial stdio
+```
 
-1. Verify WSLg is working:
-   ```bash
-   echo $DISPLAY  # Should show :0 or similar
-   ```
+Expected Output: "Starting kernel" message without panics.
 
-2. Verify QEMU installation:
-   ```bash
-   qemu-system-aarch64 --version
-   ```
+## Key Differences from Traditional Approach
 
-3. Verify firmware exists:
-   ```bash
-   ls -la /usr/local/share/qemu/edk2-aarch64-code.fd
-   ```
+### What Changed
 
-4. Create virtual disk if needed:
-   ```bash
-   qemu-img create -f qcow2 ./output/mac_hdd.img 128G
-   ```
+| Traditional UEFI Approach | New Platform Boot Layer Approach |
+|--------------------------|----------------------------------|
+| `-bios /usr/share/edk2/aarch64/QEMU_EFI.fd` | `-bios ./platform-boot-layer.fd` |
+| Multi-stage UEFI boot process | Direct Platform Boot Layer → iBoot |
+| Generic ARM64 hardware presentation | Fake Apple SoC state recreation |
+| UEFI shell as intermediate step | Direct kernelcache loading |
+| Focus on UEFI compatibility | Focus on Apple Silicon assumptions |
 
-## Why Standard QEMU Cannot Boot XNU
+### Why It Matters
 
-macOS XNU kernel requires Apple-specific hardware features not present in standard QEMU:
+- **Authenticity**: Presents genuine Apple Silicon platform conditions
+- **Security**: Maintains secure boot chain integrity
+- **Sustainability**: Eliminates dependency on generic UEFI firmware
+- **Research Value**: Enables legitimate study of macOS arm64e requirements
 
-1. **Apple System Registers**: HID3-11, EHID1/4/10, PMC0/1, PMCR1, PMSR, APRR, CTRR
-2. **Apple Device Tree Format**: Different from standard ARM FDT
-3. **Mach-O Kernel Format**: XNU uses Mach-O, not Linux kernel format
-4. **CPACR Configuration**: Specific FPU/SIMD access configuration
-5. **Memory Layout**: Apple-specific physical memory map
+## Troubleshooting Common Issues
 
-The `virt` machine type emulates generic ARM64 hardware incompatible with XNU's strict requirements.
+### Platform Boot Layer Not Found
+- Ensure `platform-boot-layer.fd` exists in current directory
+- Verify file permissions and integrity
+- Check QEMU version compatibility
 
-## Next Steps for XNU Boot
+### Kernel Panic During Boot
+- Verify kernelcache.img is unmodified
+- Check memory allocation (minimum 4GB required)
+- Ensure CPU model supports arm64e semantics
 
-To boot XNU kernel on WSL:
+### Display Issues
+- Use `-device ramfb` as fallback
+- Verify graphics backend compatibility with host OS
+- Consider disabling OpenGL (`gl=off`) for stability
 
-1. Build patched QEMU with Apple hardware emulation (see `scripts/build-qemu-xnu.sh`)
-2. Extract kernel cache from IPSW (requires xar, lzfse, asn1 decode scripts)
-3. Patch Device Tree with dtetool
-4. Prepare ramdisk with user binaries (requires macOS for HFS+ resize)
-5. Use the XNU boot command with patched QEMU
+## Future Evolution
 
-See `docs/spec/WSL_QEMU_Implementation_Guide.md` for detailed instructions.
+As the project progresses through development phases, commands will evolve:
 
-## References
+- **Phase 1**: Basic Platform Boot Layer with headless operation
+- **Phase 2**: Enhanced device model exposure
+- **Phase 3**: Full GUI support with optimized parameters  
+- **Phase 4**: Custom hypervisor eliminating QEMU dependency
 
-- [QEMU ARM System Emulator](https://www.qemu.org/docs/master/system/target-arm.html)
-- [EDK2 ArmVirtPkg](https://github.com/tianocore/edk2/tree/master/ArmVirtPkg)
-- [WSLg Documentation](https://github.com/microsoft/wslg)
+## Conclusion
+
+These commands reflect the core principle of Apple-on-Virt: **reconstructing enough of the Apple Silicon platform for macOS arm64e to believe it is home**. By focusing on Platform Boot Layer implementation rather than UEFI workarounds, we create a more authentic foundation for Apple Silicon emulation research.
+
+> This project emulates an Apple Silicon–like platform, not a generic ARM64 machine.

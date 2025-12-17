@@ -1,200 +1,130 @@
-# LLM Prompts for macOS Emulator Development
+# LLM Prompts for Apple Silicon–like Platform Emulation
 
-Last updated: 2025-12-16
+Last updated: 2025-12-17
 
-This document contains structured English prompts designed for LLM agents to process individual tasks in the **professional and systematic research and development** project for macOS Monterey ARM64 emulator. **All Phase 1 development and execution must occur within the Windows Subsystem for Linux (WSL) environment.** Each prompt follows the structured design principles outlined in the technical specification and includes quality gates, expected outputs, and clear scope definitions with WSL compatibility requirements.
+This document contains structured English prompts designed for LLM agents to process individual tasks in the **Apple-on-Virt** research project. Each prompt follows the structured design principles outlined in the technical specification and includes quality gates, expected outputs, and clear scope definitions.
 
-## Prompt 1: Generate QEMU Command to Boot macOS Monterey ARM64 Installer
+## Core Project Principles
 
-# Task Title: Generate QEMU Command to Boot macOS Monterey ARM64 Installer in WSL
+All LLM agents must understand and adhere to these fundamental principles:
+
+- **Platform Recreation**: Focus on fulfilling Apple Silicon platform assumptions, not generic ARM64 workarounds
+- **Security Model Preservation**: Security mechanisms are adapted, not disabled
+- **Minimal Intervention**: Kernel modifications restricted to early bring-up phase only  
+- **Authentic Device Presentation**: Hardware appears as Apple devices, not generic virtio
+
+> This project emulates an Apple Silicon–like platform, not a generic ARM64 machine.
+
+## Prompt Structure Guidelines
+
+All prompts must include:
+
+1. **Context**: Clear project background and current phase
+2. **Scope**: Specific, bounded task definition  
+3. **Expected Output**: Precise format and content requirements
+4. **Additional Resources**: Approved reference materials only
+5. **Project Rules Enforcement**: Quality gates and validation criteria
+
+## Example Prompts
+
+### Prompt 1: Platform Boot Layer Implementation
+
+# Task Title: Implement Platform Boot Layer Fake Apple SoC State
 ## Context
-We are conducting professional and systematic research and development for an ARM64 macOS emulator as part of a larger project. Our goal is to run macOS Monterey (12.x) ARM64 on various hardware configurations. **This task specifically focuses on WSL (Windows Subsystem for Linux) environment implementation, which has unique constraints compared to native macOS or Linux systems.**
+Apple-on-Virt requires a Platform Boot Layer that replaces traditional UEFI/BIOS concepts. The core component is fake Apple SoC state recreation that convinces macOS arm64e it's running on genuine hardware.
 ## Scope
-Your task is to generate a single, executable `qemu-system-aarch64` command that boots the provided macOS Monterey ARM64 BaseSystem.dmg image **within the WSL environment**. The command must account for WSL limitations: no Apple HVF support, x86_64 host architecture, limited GPU acceleration, and GTK-based display requirements instead of Cocoa.
+Your task is to generate C code for the fake Apple SoC state initialization function that sets up convincing hardware identifiers, memory layout, and CPU topology matching Apple Silicon expectations.
 ## Expected Output
 Return a JSON object strictly conforming to the following schema:
 {
   "type": "object",
   "properties": {
     "task_id": {"type": "string"},
-    "shell_command": {"type": "string"},
+    "c_code": {"type": "string"},
     "rationale": {"type": "string"},
     "expected_outcome": {"type": "string"},
     "is_success": {"type": "boolean"}
   },
-  "required": ["task_id", "shell_command", "rationale", "expected_outcome", "is_success"]
+  "required": ["task_id", "c_code", "rationale", "expected_outcome", "is_success"]
 }
 ## Additional Resources
-Use the official QEMU documentation for `qemu-system-aarch64`. For UEFI firmware, use the standard EDK2 AArch64 firmware located at `/usr/share/edk2/aarch64/QEMU_EFI.fd`. Reference WSL-specific QEMU configuration guides for ARM64 emulation on x86_64 hosts.
+Reference Apple Silicon technical documentation and existing Platform Boot Layer implementations. Focus on behavioral equivalence rather than exact hardware replication.
 ## Project Rules Enforcement
-Ensure your response contains NO Unicode characters or emojis. Use only relative paths in any script examples. The final output must be a valid JSON object. **The generated command must be explicitly compatible with WSL environment constraints and should not assume Apple Silicon or native macOS features.**
+Ensure your response contains NO Unicode characters or emojis. Code must follow Apple Silicon platform assumptions, not generic ARM64 approaches. The final output must be a valid JSON object.
 
----
+### Prompt 2: arm64e Semantics Validation
 
-## Prompt 2: Configure Essential Kext Injection for macOS Monterey ARM64
-
-# Task Title: Configure Essential Kext Injection for macOS Monterey ARM64 in WSL Environment
+# Task Title: Validate arm64e Semantics Implementation
 ## Context
-We have successfully booted macOS Monterey ARM64 in a QEMU virtual machine **within the WSL environment** but need to inject essential kernel extensions (Kexts) to enable basic functionality. **WSL's virtualized environment has specific hardware abstraction limitations that affect Kext selection and configuration.**
+The project specifically targets arm64e semantics, not generic ARMv8-A. This includes Pointer Authentication (PAC), specific ABI differences, and the kernel/userspace pointer trust model.
 ## Scope
-Your task is to generate a complete list of essential Kexts required for macOS Monterey ARM64 operation in a **WSL-based virtualized environment**, along with their specific purposes and WSL-compatible configuration requirements. Include Lilu.kext, VirtualSMC.kext, WhateverGreen.kext, BlueToolFixup.kext, and any chipset-specific Kexts that are compatible with emulated hardware rather than physical devices.
+Your task is to create a test suite that validates whether the emulation environment properly implements arm64e semantics required by macOS.
+## Expected Output
+Return a JSON object strictly conforming to the following schema:
+{
+  "type": "object", 
+  "properties": {
+    "task_id": {"type": "string"},
+    "test_suite": {"type": "string"},
+    "validation_criteria": {"type": "array", "items": {"type": "string"}},
+    "expected_outcome": {"type": "string"},
+    "is_success": {"type": "boolean"}
+  },
+  "required": ["task_id", "test_suite", "validation_criteria", "expected_outcome", "is_success"]
+}
+## Additional Resources
+Reference Apple's arm64e documentation and macOS kernel source where available. Focus on behavioral validation rather than instruction-level emulation.
+## Project Rules Enforcement
+Tests must validate Apple Silicon-specific behaviors, not generic ARM64 functionality. Ensure response contains NO Unicode characters or emojis. Final output must be valid JSON.
+
+### Prompt 3: Security Model Adaptation
+
+# Task Title: Design Security Model Adaptation Strategy  
+## Context
+Security mechanisms must be selectively adapted where physical hardware assumptions cannot be met in emulation, rather than simply disabled. This preserves research integrity while enabling practical execution.
+## Scope
+Your task is to design a strategy for adapting AMFI (Apple Mobile File Integrity) and SSV (System Software Verification) for the emulation environment while maintaining security model integrity.
 ## Expected Output
 Return a JSON object strictly conforming to the following schema:
 {
   "type": "object",
   "properties": {
     "task_id": {"type": "string"},
-    "essential_kexts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {"type": "string"},
-          "purpose": {"type": "string"},
-          "dependencies": {"type": "array", "items": {"type": "string"}},
-          "configuration_notes": {"type": "string"}
-        },
-        "required": ["name", "purpose"]
-      }
-    },
-    "injection_method": {"type": "string"},
+    "adaptation_strategy": {"type": "string"},
+    "security_preservation_measures": {"type": "array", "items": {"type": "string"}},
     "expected_outcome": {"type": "string"},
     "is_success": {"type": "boolean"}
   },
-  "required": ["task_id", "essential_kexts", "injection_method", "expected_outcome", "is_success"]
+  "required": ["task_id", "adaptation_strategy", "security_preservation_measures", "expected_outcome", "is_success"]
 }
 ## Additional Resources
-Reference Dortania's OpenCore Install Guide and kholia's OSX-KVM repository for Kext compatibility information. **Pay special attention to Kexts that work in emulated/virtualized environments rather than requiring specific physical hardware.**
+Reference Apple security documentation and existing secure boot implementations. Focus on cryptographic context recreation rather than bypass techniques.
 ## Project Rules Enforcement
-Ensure your response contains NO Unicode characters or emojis. Use only relative paths in any script examples. The final output must be a valid JSON object. **All Kext recommendations must be validated for compatibility with WSL's virtualized environment and emulated hardware.**
+Strategy must preserve security intent while adapting to emulation constraints. NO security disabling approaches allowed. Ensure response contains NO Unicode characters or emojis. Final output must be valid JSON.
 
----
+## Quality Gate Specification
 
-## Prompt 3: Configure SMBIOS Settings for macOS Monterey Compatibility
+All prompts must define concrete, measurable quality gates:
 
-# Task Title: Configure SMBIOS Settings for macOS Monterey Compatibility in WSL
-## Context
-macOS Monterey has strict hardware support policies and requires specific SMBIOS settings to recognize the virtual machine as compatible hardware. **In the WSL environment, we must configure SMBIOS parameters that represent virtualized/emulated hardware rather than attempting to mimic specific physical Mac models that may not be fully compatible with WSL's constraints.**
-## Scope
-Your task is to generate the correct SMBIOS configuration parameters for macOS Monterey ARM64 virtual machine **optimized for WSL environment**, including board-id, serial-number, rom, and smc-version values for supported models that work well in virtualized environments. Focus on models like Macmini7,1, iMac16,1+, or MacBookAir7,1+ that have proven compatibility with QEMU-based virtualization.
-## Expected Output
-Return a JSON object strictly conforming to the following schema:
-{
-  "type": "object",
-  "properties": {
-    "task_id": {"type": "string"},
-    "supported_models": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "model": {"type": "string"},
-          "board_id": {"type": "string"},
-          "serial_number_pattern": {"type": "string"},
-          "rom_pattern": {"type": "string"},
-          "smc_version": {"type": "string"}
-        },
-        "required": ["model", "board_id"]
-      }
-    },
-    "qemu_smbios_command": {"type": "string"},
-    "expected_outcome": {"type": "string"},
-    "is_success": {"type": "boolean"}
-  },
-  "required": ["task_id", "supported_models", "qemu_smbios_command", "expected_outcome", "is_success"]
-}
-## Additional Resources
-Reference Dortania's OpenCore Install Guide for macOS Monterey hardware compatibility and SMBIOS requirements. **Prioritize SMBIOS configurations that have been tested in QEMU virtualization environments rather than physical hardware setups.**
-## Project Rules Enforcement
-Ensure your response contains NO Unicode characters or emojis. Use only relative paths in any script examples. The final output must be a valid JSON object. **SMBIOS configurations must be suitable for WSL's virtualized environment and should avoid settings that require native macOS hardware features unavailable in WSL.**
+- **Success Case**: "Platform Boot Layer successfully initializes fake Apple SoC state and outputs verification message"
+- **Failure Case**: "Platform Boot Layer fails to load or presents generic ARM64 hardware identifiers"  
+- **Function Completion**: "Generated code compiles successfully and passes arm64e semantics validation tests"
 
----
+## Security Design Requirements
 
-## Prompt 4: Implement VirtIO Device Configuration for macOS Monterey
+LLM agent outputs must be validated against:
 
-# Task Title: Implement VirtIO Device Configuration for macOS Monterey in WSL
-## Context
-macOS Monterey includes built-in VirtIO driver support, which provides paravirtualized interfaces for efficient communication between hypervisor and operating system, dramatically improving GPU acceleration, networking, and disk I/O performance. **However, WSL environment has specific limitations regarding GPU acceleration and device passthrough that must be considered when configuring VirtIO devices.**
-## Scope
-Your task is to generate the complete QEMU command configuration for VirtIO devices including virtio-gpu-pci, virtio-net-pci, and virtio-blk controllers optimized for macOS Monterey ARM64 virtual machines **in the WSL environment**. Account for WSL's limited GPU capabilities and focus on stable, functional configurations rather than high-performance acceleration.
-## Expected Output
-Return a JSON object strictly conforming to the following schema:
-{
-  "type": "object",
-  "properties": {
-    "task_id": {"type": "string"},
-    "virtio_devices": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "device_type": {"type": "string"},
-          "qemu_option": {"type": "string"},
-          "performance_notes": {"type": "string"},
-          "limitations": {"type": "string"}
-        },
-        "required": ["device_type", "qemu_option"]
-      }
-    },
-    "complete_virtio_config": {"type": "string"},
-    "expected_outcome": {"type": "string"},
-    "is_success": {"type": "boolean"}
-  },
-  "required": ["task_id", "virtio_devices", "complete_virtio_config", "expected_outcome", "is_success"]
-}
-## Additional Resources
-Reference QEMU documentation for virtio-gpu-pci, virtio-net-pci, and virtio-blk device configuration options. **Consider WSL-specific limitations and prioritize stability over performance for GPU-related VirtIO configurations.**
-## Project Rules Enforcement
-Ensure your response contains NO Unicode characters or emojis. Use only relative paths in any script examples. The final output must be a valid JSON object. **All VirtIO configurations must be explicitly compatible with WSL environment constraints and should provide fallback options for limited GPU acceleration scenarios.**
+1. **No Security Bypass**: Solutions must adapt, not disable security mechanisms
+2. **Platform Authenticity**: Approaches must recreate Apple Silicon conditions, not generic workarounds
+3. **Minimal Intervention**: Kernel modifications limited to early bring-up phase only
+4. **Research Integrity**: Solutions must support legitimate research objectives
 
----
+## JSON Schema Enforcement
 
-## Prompt 5: Configure Boot Arguments for macOS Monterey Debugging and Optimization
+All LLM outputs must conform to strict JSON schemas to enable automated processing and validation. This ensures reliable evaluation of quality gates and seamless integration into development workflows.
 
-# Task Title: Configure Boot Arguments for macOS Monterey Debugging and Optimization in WSL
-## Context
-Boot arguments are command-line options passed to the kernel and system services during macOS booting, very useful for debugging, performance optimization, and enabling specific features in virtualized environments. **In the WSL environment, specific boot arguments may be required to address virtualization overhead, limited hardware access, and compatibility issues unique to WSL's architecture.**
-## Scope
-Your task is to generate a comprehensive list of essential boot arguments for macOS Monterey ARM64 virtual machines **specifically optimized for WSL environment**, categorized by purpose (debugging, Kext/SIP control, hardware control, WSL compatibility, etc.) with detailed explanations of each argument's function and WSL-specific usage scenarios.
-## Expected Output
-Return a JSON object strictly conforming to the following schema:
-{
-  "type": "object",
-  "properties": {
-    "task_id": {"type": "string"},
-    "boot_arguments": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "argument": {"type": "string"},
-          "category": {"type": "string"},
-          "description": {"type": "string"},
-          "usage_scenario": {"type": "string"},
-          "cautions": {"type": "string"}
-        },
-        "required": ["argument", "category", "description"]
-      }
-    },
-    "recommended_combinations": {"type": "array", "items": {"type": "string"}},
-    "expected_outcome": {"type": "string"},
-    "is_success": {"type": "boolean"}
-  },
-  "required": ["task_id", "boot_arguments", "expected_outcome", "is_success"]
-}
-## Additional Resources
-Reference eliteMacx86 forums and Dortania's OpenCore Install Guide for boot argument documentation. **Include WSL-specific boot arguments that address virtualization performance, memory management, and compatibility issues commonly encountered in WSL environments.**
-## Project Rules Enforcement
-Ensure your response contains NO Unicode characters or emojis. Use only relative paths in any script examples. The final output must be a valid JSON object. **All boot argument recommendations must be validated for effectiveness in WSL environment and should include WSL-specific optimization parameters where applicable.**
+## Conclusion
 
----
+These prompts establish a framework for LLM-assisted development that aligns with Apple-on-Virt's core principles. By focusing on **platform assumption fulfillment** rather than **workaround implementation**, we create a sustainable foundation for legitimate macOS arm64e research.
 
-## Usage Instructions
-
-1. Process each prompt individually in sequence
-2. Ensure all outputs conform to the specified JSON schema
-3. Validate quality gates (`is_success` field) before proceeding to next task
-4. Use the structured output for automated integration into the **WSL-based** development workflow
-5. Follow all project rules enforcement guidelines strictly, **with particular attention to WSL compatibility requirements**
-
-Each prompt is designed to be self-contained and executable by an LLM agent within a single session, with clear quality gates and expected outcomes as specified in the technical specification document. **All generated solutions must be explicitly compatible with the Windows Subsystem for Linux (WSL) environment and should not assume access to native macOS or Apple Silicon features.**
+> Security mechanisms are not disabled, but selectively adapted where physical hardware assumptions cannot be met in emulation.
