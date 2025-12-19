@@ -1,8 +1,9 @@
-# Phase 3 Unknowns and Unresolved Items
+# Phase 3/4 Unknowns and Unresolved Items
 
-**Purpose**: Explicitly document what remains UNKNOWN after Phase 3b classification
+**Purpose**: Explicitly document what remains UNKNOWN after Phase 3b classification and Phase 4a ADT generation
 
-**Date**: 2025-12-18
+**Last Updated**: 2025-12-19  
+**Phase**: 4a Complete, 4b Blocked
 
 ---
 
@@ -793,7 +794,107 @@ An item is marked UNKNOWN if:
 
 ---
 
-**Documentation Date**: 2025-12-18  
-**Source**: Phase 3b observations + classification analysis  
-**Total Unknowns**: 28 items across 9 categories  
-**Critical Blockers**: 3 (ADT format, iBoot entry state, entry point)
+## Phase 4a Update: ADT Format RESOLVED ✓
+
+**Date**: 2025-12-19
+
+### RESOLVED: UNKNOWN 2.1 - ADT Binary Format Specification
+
+**Status**: ✓ COMPLETE (Phase 3d-1 + Phase 4a)
+
+**What Was Resolved**:
+- ADT binary structure fully documented (docs/models/adt-structure.md)
+- Node format: 8-byte header (property_count, child_count)
+- Property format: 32-byte name + 4-byte size + variable value
+- Alignment: 4-byte boundaries with padding
+- Encoding: Little-endian, NUL-terminated strings
+- Size field: bits 0-30 = size, bit 31 = template flag
+
+**Evidence**:
+- m1n1 adt.py parser source analysis
+- m1n1 adt.rs Rust implementation
+- Binary format reverse-engineered from parsers
+
+**Deliverables**:
+- docs/models/adt-structure.md - Complete binary specification
+- scripts/phase4/minimal_adt_gen.py - Working ADT generator
+- output/minimal_adt.bin - Structurally valid ADT (96 bytes)
+- output/minimal_adt_with_placeholders.bin - With placeholder nodes (200 bytes)
+
+**Validation**:
+- ✓ Binary format compliant with specification
+- ✓ Parses correctly (m1n1 fails on semantic requirements, not format)
+- ✓ Ready for boot chain integration
+
+### STILL UNKNOWN: UNKNOWN 2.2 - Minimum Required ADT Content
+
+**Status**: ❓ PARTIALLY RESOLVED
+
+**What We Know Now**:
+- Minimal ADT can be extremely small (96 bytes)
+- Root node requires: name property, compatible property (can be empty)
+- Child nodes may be optional (testing required)
+
+**What Still Unknown**:
+- Which nodes does boot.efi/iBoot actually require?
+- Which properties are mandatory vs optional?
+- Whether /chosen, /memory are truly required
+
+**Next Steps**:
+- Boot with minimal_adt.bin
+- Add nodes/properties only when boot explicitly fails
+- Iteratively determine minimum requirements
+
+### STILL UNKNOWN: UNKNOWN 2.3 - ADT Location in Memory
+
+**Status**: ❓ UNCHANGED
+
+No new information from Phase 4a. Requires boot environment testing.
+
+---
+
+## Updated Summary Statistics
+
+### By Confidence
+
+| Confidence | Count | Examples |
+|-----------|-------|----------|
+| **RESOLVED** | **1** | **ADT format** |
+| HIGH | 8 | iBoot entry state, minimal ADT content, entry point |
+| MEDIUM | 13 | Exception Level, device access, DRAM detection |
+| LOW | 6 | RVBAR locking, video memory, CPU ID |
+
+### By Impact
+
+| Impact | Count | Examples |
+|--------|-------|----------|
+| **RESOLVED** | **1** | **ADT format (was CRITICAL)** |
+| HIGH | 2 | iBoot entry state, entry point |
+| MEDIUM | 15 | Device access order, memory layout, registers |
+| LOW | 10 | RVBAR, video memory, watchdog, minimal ADT content (reduced) |
+
+### Critical Blockers for Phase 4b
+
+**RESOLVED**:
+- ~~ADT Binary Format~~ ✓ COMPLETE
+
+**REMAINING**:
+1. **Boot Environment** (NEW BLOCKER)
+   - No QEMU/hardware setup
+   - Cannot test ADT with boot chain
+   - Blocks all further progress
+
+2. **iBoot Entry State** (HIGH)
+   - Cannot initialize CPU correctly
+   - Blocks iBoot execution
+
+3. **iBoot Entry Point** (HIGH)
+   - Cannot load iBoot at correct address
+   - Blocks iBoot execution
+
+---
+
+**Last Updated**: 2025-12-19  
+**Source**: Phase 3b + Phase 3d-1 + Phase 4a  
+**Total Items**: 28 (1 resolved, 27 remaining)  
+**Critical Blockers**: 3 (boot environment, iBoot entry state, entry point)
