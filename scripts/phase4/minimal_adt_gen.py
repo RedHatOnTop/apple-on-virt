@@ -125,25 +125,43 @@ def create_minimal_adt():
     return root
 
 def create_minimal_with_memory_placeholder():
-    """
-    Create minimal ADT with memory node placeholder.
-    
-    If boot chain requires /chosen or /memory nodes to exist,
-    this variant includes empty placeholders.
-    
-    Still NO semantic content.
-    """
+    """Create minimal ADT with empty /chosen and /memory nodes."""
     root = ADTNode("device-tree")
     root.add_property("compatible", "")
-    
-    # Add empty chosen node (may be required for boot arguments)
+
     chosen = ADTNode("chosen")
     root.add_child(chosen)
-    
-    # Add empty memory node (may be required for DRAM detection)
+
     memory = ADTNode("memory")
     root.add_child(memory)
-    
+
+    return root
+
+
+def create_minimal_with_memory_reg(dram_base, dram_size):
+    """Create minimal ADT with /memory.reg describing DRAM base/size.
+
+    Encoding is based on m1n1 ADT reg parsing:
+    - reg is a contiguous array of u32 little-endian cells
+    - for 64-bit addr/size: [addr_lo, addr_hi, size_lo, size_hi]
+    """
+    root = create_minimal_with_memory_placeholder()
+
+    # Required for reg parsing: parent's cell sizes
+    root.add_property("#address-cells", struct.pack('<I', 2))
+    root.add_property("#size-cells", struct.pack('<I', 2))
+
+    addr_lo = dram_base & 0xFFFFFFFF
+    addr_hi = (dram_base >> 32) & 0xFFFFFFFF
+    size_lo = dram_size & 0xFFFFFFFF
+    size_hi = (dram_size >> 32) & 0xFFFFFFFF
+
+    reg = struct.pack('<IIII', addr_lo, addr_hi, size_lo, size_hi)
+
+    # Root children: [chosen, memory]
+    memory = root.children[1]
+    memory.add_property("reg", reg)
+
     return root
 
 def write_adt(root, output_path):
@@ -157,14 +175,27 @@ def write_adt(root, output_path):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: minimal_adt_gen.py <output.bin> [--with-placeholders]")
+        print("Usage: minimal_adt_gen.py <output.bin> [--with-placeholders] [--with-memory-reg] [--dram-base <hex>] [--dram-size <hex>]")
         sys.exit(1)
-    
+
     output_path = Path(sys.argv[1])
     use_placeholders = "--with-placeholders" in sys.argv
-    
+    use_memory_reg = "--with-memory-reg" in sys.argv
+
+    def arg_hex(flag, default):
+        if flag in sys.argv:
+            i = sys.argv.index(flag)
+            return int(sys.argv[i + 1], 16)
+        return default
+
+    dram_base = arg_hex("--dram-base", 0x800000000)
+    dram_size = arg_hex("--dram-size", 0x10000000)
+
     # Create ADT
-    if use_placeholders:
+    if use_memory_reg:
+        print("Generating minimal ADT with /memory.reg...")
+        root = create_minimal_with_memory_reg(dram_base, dram_size)
+    elif use_placeholders:
         print("Generating minimal ADT with memory/chosen placeholders...")
         root = create_minimal_with_memory_placeholder()
     else:

@@ -36,15 +36,15 @@
  * 0x0000_0000_0000_0000 - 0x0000_0000_0FFF_FFFF : Reserved (256MB)
  * 0x0000_0000_1000_0000 - 0x0000_0000_1FFF_FFFF : Secure Region (256MB)
  * 0x0000_0000_2000_0000 - 0x0000_0000_3FFF_FFFF : MMIO Region (512MB)
- * 0x0000_0000_4000_0000 - 0x0000_0000_7FFF_FFFF : DRAM (1GB)
+ * 0x0000_0008_0000_0000 - 0x0000_0008_0FFF_FFFF : DRAM (256MB)
  *
  * DRAM Layout:
  *
- * 0x4000_0000 - 0x4000_FFFF : Device Tree (64KB)
- * 0x4001_0000 - 0x400F_FFFF : Reserved for boot args (960KB)
- * 0x4010_0000 - 0x40FF_FFFF : iBoot load region (15MB)
- * 0x4100_0000 - 0x41FF_FFFF : Kernel load region (16MB)
- * 0x4200_0000 - 0x7FFF_FFFF : General DRAM (~1.5GB available)
+ * 0x8_0000_0000 - 0x8_0000_FFFF : Device Tree / ADT (64KB)
+ * 0x8_0001_0000 - 0x8_000F_FFFF : Reserved for boot args (960KB)
+ * 0x8_0010_0000 - 0x8_00FF_FFFF : iBoot load region (15MB)
+ * 0x8_0100_0000 - 0x8_01FF_FFFF : Kernel load region (16MB)
+ * 0x8_0200_0000 - 0x8_0FFF_FFFF : General DRAM (remaining)
  */
 
 /* Base memory regions */
@@ -57,8 +57,8 @@
 #define APPLE_MMIO_BASE         0x20000000ULL
 #define APPLE_MMIO_SIZE         0x20000000ULL   /* 512MB */
 
-#define APPLE_DRAM_BASE         0x40000000ULL
-#define APPLE_DRAM_SIZE         0x40000000ULL   /* 1GB */
+#define APPLE_DRAM_BASE         0x800000000ULL
+#define APPLE_DRAM_SIZE         0x10000000ULL   /* 256MB */
 
 /* DRAM sub-regions (all relative to APPLE_DRAM_BASE) */
 #define APPLE_DT_OFFSET         0x00000000ULL   /* Device Tree offset */

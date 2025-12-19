@@ -69,6 +69,7 @@ static void apple_machine_init(MachineState *machine)
     ARMCPU *cpu;
     void *fdt;
     uint32_t fdt_size;
+    int64_t dt_size;
     IBootLoadInfo iboot_info = {0};
     bool iboot_loaded = false;
 
@@ -98,15 +99,29 @@ static void apple_machine_init(MachineState *machine)
     memory_region_add_subregion(sysmem, APPLE_DRAM_BASE, &ams->ram);
 
     /*
-     * Step 3: Generate and place FDT
+     * Step 3: Place Device Tree blob
      *
-     * FDT is placed at APPLE_DT_BASE (0x40000000)
-     * This exposes platform context to iBoot.
+     * Phase 5a: The project uses Apple Device Tree (ADT) binaries.
+     * We treat the blob as opaque bytes and only place it in guest DRAM.
+     *
+     * - If -dtb is provided, load that file verbatim at APPLE_DT_BASE.
+     * - Otherwise, fall back to the existing synthetic FDT generator.
      */
-    if (apple_platform_boot_layer_generate_fdt(&ams->platform_boot_layer) == 0) {
-        fdt = apple_platform_boot_layer_get_fdt(&ams->platform_boot_layer, &fdt_size);
-        if (fdt && fdt_size > 0) {
-            rom_add_blob_fixed("device-tree", fdt, fdt_size, APPLE_DT_BASE);
+    dt_size = -1;
+    if (machine->dtb) {
+        error_report("Loading DT blob (-dtb) from: %s", machine->dtb);
+        dt_size = load_image_targphys(machine->dtb, APPLE_DT_BASE, APPLE_DT_SIZE);
+        if (dt_size <= 0) {
+            error_report("Failed to load DT blob '%s'", machine->dtb);
+        }
+    }
+
+    if (dt_size <= 0) {
+        if (apple_platform_boot_layer_generate_fdt(&ams->platform_boot_layer) == 0) {
+            fdt = apple_platform_boot_layer_get_fdt(&ams->platform_boot_layer, &fdt_size);
+            if (fdt && fdt_size > 0) {
+                rom_add_blob_fixed("device-tree", fdt, fdt_size, APPLE_DT_BASE);
+            }
         }
     }
 
