@@ -35,6 +35,50 @@
 #include "platform/platform_state.h"
 
 /*
+ * Phase 5b: Minimal UART0 stub
+ *
+ * Contract:
+ * - MMIO exists at APPLE_UART0_BASE
+ * - Writes are accepted and emit bytes to host stderr
+ * - Reads return a fixed non-zero value (dummy)
+ */
+static uint64_t apple_uart0_stub_read(void *opaque, hwaddr offset, unsigned size)
+{
+    (void)opaque;
+    (void)offset;
+
+    /* Dummy "ready" value; sized by access width. */
+    switch (size) {
+    case 1: return 0xFF;
+    case 2: return 0xFFFF;
+    case 4: return 0xFFFFFFFFULL;
+    default: return 0xFFFFFFFFFFFFFFFFULL;
+    }
+}
+
+static void apple_uart0_stub_write(void *opaque, hwaddr offset, uint64_t value,
+                                  unsigned size)
+{
+    (void)opaque;
+    (void)offset;
+    (void)size;
+
+    /* Treat the low byte of any write as a character. */
+    fputc((int)(value & 0xFF), stderr);
+    fflush(stderr);
+}
+
+static const MemoryRegionOps apple_uart0_stub_ops = {
+    .read = apple_uart0_stub_read,
+    .write = apple_uart0_stub_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+/*
  * Idle Loop (Fallback)
  *
  * Used when no iBoot binary is provided.
@@ -142,6 +186,15 @@ static void apple_machine_init(MachineState *machine)
 
     /* Store CPU reference */
     ams->cpu = CPU(cpu);
+
+    /*
+     * Phase 5b: UART0 stub mapping
+     *
+     * This adds only a single MMIO subregion; DRAM mapping is unchanged.
+     */
+    memory_region_init_io(&ams->uart0, OBJECT(machine), &apple_uart0_stub_ops,
+                          NULL, "apple.uart0", APPLE_UART0_SIZE);
+    memory_region_add_subregion(sysmem, APPLE_UART0_BASE, &ams->uart0);
 
     /*
      * Step 5: Load iBoot or fallback to idle loop

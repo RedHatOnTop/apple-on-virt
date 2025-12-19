@@ -57,6 +57,10 @@
 #define APPLE_MMIO_BASE         0x20000000ULL
 #define APPLE_MMIO_SIZE         0x20000000ULL   /* 512MB */
 
+/* UART0 (debug console) */
+#define APPLE_UART0_BASE        0x235200000ULL
+#define APPLE_UART0_SIZE        0x00004000ULL   /* 16KB */
+
 #define APPLE_DRAM_BASE         0x800000000ULL
 #define APPLE_DRAM_SIZE         0x10000000ULL   /* 256MB */
 

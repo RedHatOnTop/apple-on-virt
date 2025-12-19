@@ -31,6 +31,9 @@ venv/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Phase5 Python venv
+.venv-phase5
+
 # Build outputs
 build/
 dist/
@@ -101,6 +104,7 @@ docs/external/**
 
 # QEMU build artifacts (excluding source files)
 emulator/qemu-apple-silicon/build/
+emulator/qemu-apple-silicon/build-*/
 emulator/qemu-apple-silicon/config.h
 emulator/qemu-apple-silicon/config-host.h
 emulator/qemu-apple-silicon/qemu

@@ -58,6 +58,9 @@ struct AppleMachineState {
     /* RAM region */
     MemoryRegion ram;
 
+    /* UART0 stub MMIO region (Phase 5b) */
+    MemoryRegion uart0;
+
     /* Platform Boot Layer (Phase E) */
     ApplePlatformBootLayer platform_boot_layer;
 };
