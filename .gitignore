@@ -50,6 +50,27 @@ dist/
 *.dmg
 *.sparseimage
 
+# Apple Firmware Binaries (Phase 2+)
+# CRITICAL: These files must NEVER be committed
+*.im4p
+*.im4m
+*.img4
+iBoot*
+iboot*
+iBoot.*
+iboot.*
+iBEC*
+iBSS*
+kernelcache*
+*.kc
+boot.efi
+*.efi
+DeviceTree.*
+devicetree.*
+*.dtb
+RestoreRamDisk*
+*.trustcache
+
 # Large binary files
 *.iso
 
@@ -74,8 +95,23 @@ output/*
 
 # Local storage (IPSW and reference repos)
 local_storage/**
-!local_storage/**/
-!local_storage/**/.gitkeep
+
+# External documentation sources
+docs/external/**
+
+# QEMU build artifacts (excluding source files)
+emulator/qemu-apple-silicon/build/
+emulator/qemu-apple-silicon/config.h
+emulator/qemu-apple-silicon/config-host.h
+emulator/qemu-apple-silicon/qemu
+emulator/qemu-apple-silicon/qemu-system-*
+emulator/qemu-apple-silicon/*.o
+emulator/qemu-apple-silicon/*.d
+emulator/qemu-apple-silicon/*.a
+emulator/qemu-apple-silicon/*.so
+emulator/qemu-apple-silicon/*.dylib
+emulator/qemu-apple-silicon/*.dll
+emulator/qemu-apple-silicon/*.exe
 
 # Kext binaries (keep structure)
 kexts/*.kext/

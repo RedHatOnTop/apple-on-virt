@@ -1,0 +1,11 @@
+# Apple Silicon Platform - Kconfig
+# This is the ONLY machine for apple-on-virt.
+# It reconstructs an Apple Silicon-like platform for macOS arm64e.
+
+config APPLE_SILICON_BRINGUP
+    bool
+    default y
+    depends on AARCH64
+    select ARM_GIC
+    select PL011
+    select DEVICE_TREE
