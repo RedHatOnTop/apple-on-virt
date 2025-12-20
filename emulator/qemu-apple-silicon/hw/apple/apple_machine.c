@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
@@ -160,6 +161,95 @@ static const uint32_t idle_loop[] = {
 };
 
 /*
+ * Phase 5f: Minimal ADT "chosen" verifier (structure is treated as opaque).
+ *
+ * This only checks that the DT blob contains a top-level child with name
+ * "chosen" using the same structural assumptions as the Phase 4 surrogate.
+ */
+static bool apple_adt_has_chosen_child(const uint8_t *dt, size_t dt_size)
+{
+    uint32_t prop_count, child_count;
+    size_t off;
+
+    if (!dt || dt_size < 12) {
+        return false;
+    }
+
+    prop_count = *(const uint32_t *)(dt + 0);
+    child_count = *(const uint32_t *)(dt + 4);
+
+    off = 8;
+    for (uint32_t i = 0; i < prop_count; i++) {
+        if (off + 36 > dt_size) {
+            return false;
+        }
+        uint32_t len = *(const uint32_t *)(dt + off + 32) & 0x7fffffffU;
+        off = (off + 36 + len + 3) & ~(size_t)3;
+        if (off > dt_size) {
+            return false;
+        }
+    }
+
+    for (uint32_t c = 0; c < child_count; c++) {
+        if (off + 8 + 36 + 7 > dt_size) {
+            return false;
+        }
+
+        uint32_t c_prop_count = *(const uint32_t *)(dt + off + 0);
+        (void)c_prop_count;
+
+        /* First child property is expected to be name; value at +8+36. */
+        const char *nm = (const char *)(dt + off + 8 + 36);
+        if (!memcmp(nm, "chosen", 6)) {
+            return true;
+        }
+
+        /* Skip child node (properties only; minimal ADT has no grandchildren). */
+        size_t child_off = off + 8;
+        for (uint32_t i = 0; i < c_prop_count; i++) {
+            if (child_off + 36 > dt_size) {
+                return false;
+            }
+            uint32_t len = *(const uint32_t *)(dt + child_off + 32) & 0x7fffffffU;
+            child_off = (child_off + 36 + len + 3) & ~(size_t)3;
+            if (child_off > dt_size) {
+                return false;
+            }
+        }
+
+        off = child_off;
+    }
+
+    return false;
+}
+
+static void apple_phase5f_verify_dtb(const char *dtb_path)
+{
+    FILE *f;
+    uint8_t buf[APPLE_DT_SIZE];
+    size_t n;
+
+    if (!dtb_path) {
+        return;
+    }
+
+    f = fopen(dtb_path, "rb");
+    if (!f) {
+        error_report("Phase5f: unable to open DT blob for verification: %s", dtb_path);
+        return;
+    }
+
+    n = fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+
+    if (apple_adt_has_chosen_child(buf, n)) {
+        error_report("Phase5f: /chosen exists in DT blob (ADT)");
+    } else {
+        error_report("Phase5f: /chosen NOT found in DT blob (ADT)");
+    }
+}
+
+/*
  * Machine initialization
  *
  * Phase 2 initialization flow:
@@ -234,6 +324,11 @@ static void apple_machine_init(MachineState *machine)
         }
     }
 
+    /* Phase 5f: verify /chosen exists in the provided ADT blob (no mutation). */
+    if (machine->dtb) {
+        apple_phase5f_verify_dtb(machine->dtb);
+    }
+
     /*
      * Step 4: Create CPU
      *
@@ -251,6 +346,17 @@ static void apple_machine_init(MachineState *machine)
 
     /* Store CPU reference */
     ams->cpu = CPU(cpu);
+
+    /*
+     * Phase 5f: Boot-args buffer must exist and be mapped.
+     * We pre-zero a small prefix at the fixed BootArgs base.
+     */
+    {
+        uint8_t zero[0x1000] = {0};
+        cpu_physical_memory_write(APPLE_BOOTARGS_BASE, zero, sizeof(zero));
+        error_report("Phase5f: boot_args buffer initialized at 0x%llx",
+                     (unsigned long long)APPLE_BOOTARGS_BASE);
+    }
 
     /*
      * Phase 5b: UART0 stub mapping
@@ -303,6 +409,24 @@ static void apple_machine_init(MachineState *machine)
                            APPLE_IBOOT_BASE);
         error_report("No iBoot provided, using idle loop at 0x%llx",
                    (unsigned long long)APPLE_IBOOT_BASE);
+    }
+
+    /*
+     * Phase 5f: Optional "kernel" blob load via -initrd
+     *
+     * This is a bring-up convenience to demonstrate kernel entry attempt.
+     * It loads the initrd raw at APPLE_KERNEL_BASE (no parsing).
+     */
+    if (machine->initrd_filename) {
+        int64_t ksize;
+        error_report("Phase5f: Loading kernel blob (-initrd) from: %s", machine->initrd_filename);
+        ksize = load_image_targphys(machine->initrd_filename, APPLE_KERNEL_BASE, APPLE_KERNEL_SIZE);
+        if (ksize > 0) {
+            error_report("Phase5f: kernel blob loaded at 0x%llx (%" PRId64 " bytes)",
+                         (unsigned long long)APPLE_KERNEL_BASE, ksize);
+        } else {
+            error_report("Phase5f: kernel blob load failed (%" PRId64 ")", ksize);
+        }
     }
 
     /*
