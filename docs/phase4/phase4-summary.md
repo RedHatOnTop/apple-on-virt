@@ -32,6 +32,8 @@
 
 ### ADT Format: STABLE ✓
 
+**ADT format is frozen and no longer under investigation.**
+
 **Evidence**:
 - ADT binary format per `docs/models/adt-structure.md` works
 - iBoot surrogate successfully parses ADT header
