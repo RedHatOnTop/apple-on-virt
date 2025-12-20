@@ -61,6 +61,10 @@ struct AppleMachineState {
     /* UART0 stub MMIO region (Phase 5b) */
     MemoryRegion uart0;
 
+    /* AIC stub MMIO region (Phase 5d) */
+    MemoryRegion aic;
+    uint64_t aic_regs[APPLE_AIC_SIZE / sizeof(uint64_t)];
+
     /* Platform Boot Layer (Phase E) */
     ApplePlatformBootLayer platform_boot_layer;
 };

@@ -61,6 +61,10 @@
 #define APPLE_UART0_BASE        0x235200000ULL
 #define APPLE_UART0_SIZE        0x00004000ULL   /* 16KB */
 
+/* Apple Interrupt Controller (AIC) */
+#define APPLE_AIC_BASE          0x23b100000ULL
+#define APPLE_AIC_SIZE          0x0000C000ULL   /* 48KB */
+
 #define APPLE_DRAM_BASE         0x800000000ULL
 #define APPLE_DRAM_SIZE         0x10000000ULL   /* 256MB */
 

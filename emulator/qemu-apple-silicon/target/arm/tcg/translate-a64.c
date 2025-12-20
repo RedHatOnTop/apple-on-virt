@@ -2256,6 +2256,41 @@ static void gen_sysreg_undef(DisasContext *s, bool isread,
     gen_exception_insn(s, 0, EXCP_UDEF, syndrome);
 }
 
+/*
+ * Phase 5d: Interrupt-related sysreg stubs
+ *
+ * Goal: ensure early boot code probing interrupt controller sysregs does not
+ * trap unexpectedly. These are RAZ/WI placeholders (no interrupt delivery).
+ */
+static bool apple_interrupt_sysreg_stub(unsigned int op0, unsigned int op1,
+                                       unsigned int crn, unsigned int crm,
+                                       unsigned int op2)
+{
+    /* Apple implementation-defined sysreg space (used for IPIs, etc.). */
+    if (op0 == 3 && op1 == 5 && crn == 15) {
+        return true;
+    }
+
+    /* GICv3 ICC system register interface (common boot probe path). */
+    if (op0 == 3 && op1 == 0) {
+        /* ICC_PMR_EL1 (SYSREG(3,0,4,6,0)) */
+        if (crn == 4 && crm == 6 && op2 == 0) {
+            return true;
+        }
+
+        /* ICC_{IAR,EOIR}{0,1}_EL1 and basic enables/control. */
+        if (crn == 12 && crm == 8 && (op2 == 0 || op2 == 1)) {
+            return true;
+        }
+        if (crn == 12 && crm == 12 && (op2 == 0 || op2 == 1 || op2 == 4 ||
+                                       op2 == 5 || op2 == 6 || op2 == 7)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /* MRS - move from system register
  * MSR (register) - move to system register
  * SYS
@@ -2297,6 +2332,17 @@ static void handle_sys(DisasContext *s, bool isread,
     }
 
     if (!ri) {
+        /*
+         * Phase 5d: Treat interrupt-related probe sysregs as RAZ/WI so
+         * bring-up can continue without implementing interrupt delivery.
+         */
+        if (apple_interrupt_sysreg_stub(op0, op1, crn, crm, op2)) {
+            if (isread && rt != 31) {
+                tcg_gen_movi_i64(cpu_reg(s, rt), 0);
+            }
+            return;
+        }
+
         /* Unknown register; this might be a guest error or a QEMU
          * unimplemented feature.
          */

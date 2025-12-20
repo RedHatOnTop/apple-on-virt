@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
@@ -71,6 +72,70 @@ static void apple_uart0_stub_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps apple_uart0_stub_ops = {
     .read = apple_uart0_stub_read,
     .write = apple_uart0_stub_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+/*
+ * Phase 5d: Minimal AIC stub
+ *
+ * Contract:
+ * - MMIO exists at APPLE_AIC_BASE
+ * - Reads/writes do not crash
+ * - Registers are writable (last-write-wins)
+ * - No interrupt delivery is implemented
+ */
+static uint64_t apple_aic_stub_read(void *opaque, hwaddr offset, unsigned size)
+{
+    AppleMachineState *ams = opaque;
+    uint64_t idx = (offset & ~(hwaddr)0x7) >> 3;
+    uint64_t shift = (offset & 0x7) * 8;
+    uint64_t mask = (size >= 8) ? ~0ULL : ((1ULL << (size * 8)) - 1);
+    uint64_t val = 0;
+
+    if (idx < (APPLE_AIC_SIZE / sizeof(uint64_t))) {
+        val = (ams->aic_regs[idx] >> shift) & mask;
+    }
+
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "AIC R off=0x%llx size=%u -> 0x%llx\n",
+                      (unsigned long long)offset, size,
+                      (unsigned long long)val);
+    }
+
+    return val;
+}
+
+static void apple_aic_stub_write(void *opaque, hwaddr offset, uint64_t value,
+                                unsigned size)
+{
+    AppleMachineState *ams = opaque;
+    uint64_t idx = (offset & ~(hwaddr)0x7) >> 3;
+    uint64_t shift = (offset & 0x7) * 8;
+    uint64_t mask = (size >= 8) ? ~0ULL : ((1ULL << (size * 8)) - 1);
+
+    if (idx < (APPLE_AIC_SIZE / sizeof(uint64_t))) {
+        uint64_t cur = ams->aic_regs[idx];
+        cur &= ~(mask << shift);
+        cur |= (value & mask) << shift;
+        ams->aic_regs[idx] = cur;
+    }
+
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "AIC W off=0x%llx size=%u val=0x%llx\n",
+                      (unsigned long long)offset, size,
+                      (unsigned long long)value);
+    }
+}
+
+static const MemoryRegionOps apple_aic_stub_ops = {
+    .read = apple_aic_stub_read,
+    .write = apple_aic_stub_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -195,6 +260,14 @@ static void apple_machine_init(MachineState *machine)
     memory_region_init_io(&ams->uart0, OBJECT(machine), &apple_uart0_stub_ops,
                           NULL, "apple.uart0", APPLE_UART0_SIZE);
     memory_region_add_subregion(sysmem, APPLE_UART0_BASE, &ams->uart0);
+
+    /*
+     * Phase 5d: AIC stub mapping (existence only, no real interrupts)
+     */
+    memset(ams->aic_regs, 0, sizeof(ams->aic_regs));
+    memory_region_init_io(&ams->aic, OBJECT(machine), &apple_aic_stub_ops,
+                          ams, "apple.aic", APPLE_AIC_SIZE);
+    memory_region_add_subregion(sysmem, APPLE_AIC_BASE, &ams->aic);
 
     /*
      * Step 5: Load iBoot or fallback to idle loop
