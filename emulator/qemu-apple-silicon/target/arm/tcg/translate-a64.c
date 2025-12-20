@@ -2257,10 +2257,7 @@ static void gen_sysreg_undef(DisasContext *s, bool isread,
 }
 
 /*
- * Phase 5d: Interrupt-related sysreg stubs
- *
- * Goal: ensure early boot code probing interrupt controller sysregs does not
- * trap unexpectedly. These are RAZ/WI placeholders (no interrupt delivery).
+ * Phase 5d/5e: Sysreg stubs (existence + stability)
  */
 static bool apple_interrupt_sysreg_stub(unsigned int op0, unsigned int op1,
                                        unsigned int crn, unsigned int crm,
@@ -2291,6 +2288,59 @@ static bool apple_interrupt_sysreg_stub(unsigned int op0, unsigned int op1,
     return false;
 }
 
+/*
+ * Phase 5e: CPU sysreg sanity stubs (MMU/translation must remain disabled)
+ *
+ * We treat common early-boot probes/config writes as RAZ/WI to prevent:
+ * - unexpected UNDEF traps
+ * - accidentally enabling translation/page-table walks
+ */
+static bool apple_cpu_sysreg_stub(unsigned int op0, unsigned int op1,
+                                 unsigned int crn, unsigned int crm,
+                                 unsigned int op2, uint64_t *read_val)
+{
+    if (read_val) {
+        *read_val = 0;
+    }
+
+    if (op0 != 3 || op1 != 0) {
+        return false;
+    }
+
+    /*
+     * MMU/translation control path (RAZ/WI):
+     * - SCTLR_EL1  : S3_0_C1_C0_0
+     * - TTBR0_EL1  : S3_0_C2_C0_0
+     * - TTBR1_EL1  : S3_0_C2_C0_1
+     * - TCR_EL1    : S3_0_C2_C0_2
+     * - MAIR_EL1   : S3_0_C10_C2_0
+     * - AMAIR_EL1  : S3_0_C10_C3_0
+     */
+    if (crn == 1 && crm == 0 && op2 == 0) { /* SCTLR_EL1 */
+        return true;
+    }
+    if (crn == 2 && crm == 0 && (op2 == 0 || op2 == 1 || op2 == 2)) { /* TTBR*/
+        return true;
+    }
+    if (crn == 10 && ((crm == 2 && op2 == 0) || (crm == 3 && op2 == 0))) {
+        return true;
+    }
+
+    /*
+     * Exception state (RAZ/WI):
+     * - ESR_EL1 : S3_0_C5_C2_0
+     * - FAR_EL1 : S3_0_C6_C0_0
+     */
+    if ((crn == 5 && crm == 2 && op2 == 0) || (crn == 6 && crm == 0 && op2 == 0)) {
+        return true;
+    }
+
+    /*
+     * CurrentEL is architected and should not trap; keep it real.
+     */
+    return false;
+}
+
 /* MRS - move from system register
  * MSR (register) - move to system register
  * SYS
@@ -2313,6 +2363,19 @@ static void handle_sys(DisasContext *s, bool isread,
     TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
     uint32_t syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
+    uint64_t stub_read_val = 0;
+
+    /*
+     * Phase 5e: CPU sysreg sanity stubs (RAZ/WI)
+     *
+     * Must run before sysreg lookup so we can ignore MMU-enabling writes.
+     */
+    if (apple_cpu_sysreg_stub(op0, op1, crn, crm, op2, &stub_read_val)) {
+        if (isread && rt != 31) {
+            tcg_gen_movi_i64(cpu_reg(s, rt), stub_read_val);
+        }
+        return;
+    }
 
     if (crn == 11 || crn == 15) {
         /*
