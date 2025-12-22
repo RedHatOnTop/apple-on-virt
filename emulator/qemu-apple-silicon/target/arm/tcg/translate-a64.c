@@ -2429,6 +2429,57 @@ static void handle_sys(DisasContext *s, bool isread,
                                         tcg_constant_i32(0));
     }
 
+    /* Phase 6c: early subsystem expectation probes (logging only) */
+    if (op0 == 3 && op1 == 0 && crn == 0 && crm == 0 && op2 == 5) {
+        /* MPIDR_EL1 */
+        gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                           tcg_constant_i32(1), tcg_constant_i64(0),
+                                           tcg_constant_i32(isread ? 1 : 0));
+    }
+
+    if (op0 == 3 && op1 == 0 && crn == 13 && crm == 0 && op2 == 4) {
+        /* TPIDR_EL1 */
+        if (isread) {
+            gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(2), tcg_constant_i64(0),
+                                               tcg_constant_i32(1));
+        } else {
+            gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(2), cpu_reg(s, rt),
+                                               tcg_constant_i32(0));
+        }
+    }
+
+    if (op0 == 3 && op1 == 3 && crn == 14 && crm == 0 && op2 == 0) {
+        /* CNTFRQ_EL0 */
+        gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                           tcg_constant_i32(3), tcg_constant_i64(0),
+                                           tcg_constant_i32(isread ? 1 : 0));
+    }
+
+    if (op0 == 3 && op1 == 3 && crn == 14 && crm == 0 && op2 == 2) {
+        /* CNTVCT_EL0 */
+        gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                           tcg_constant_i32(4), tcg_constant_i64(0),
+                                           tcg_constant_i32(isread ? 1 : 0));
+    }
+
+    if (op0 == 3 && op1 == 5 && crn == 15) {
+        /* Apple implementation-defined sysreg space */
+        uint64_t enc = ((uint64_t)op0 << 20) | ((uint64_t)op1 << 16) |
+                       ((uint64_t)crn << 12) | ((uint64_t)crm << 8) |
+                       ((uint64_t)op2 << 4);
+        if (isread) {
+            gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(5), tcg_constant_i64(enc),
+                                               tcg_constant_i32(1));
+        } else {
+            gen_helper_apple_log_subsys_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(5), tcg_constant_i64(enc),
+                                               tcg_constant_i32(0));
+        }
+    }
+
     if (crn == 11 || crn == 15) {
         /*
          * Check for TIDCP trap, which must take precedence over

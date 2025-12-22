@@ -1058,6 +1058,48 @@ void HELPER(apple_log_vbar_sysreg)(CPUARMState *env, uint64_t pc,
                   arm_current_el(env));
 }
 
+static const char *apple_subsys_sysreg_name(uint32_t regid)
+{
+    switch (regid) {
+    case 1: return "MPIDR_EL1";
+    case 2: return "TPIDR_EL1";
+    case 3: return "CNTFRQ_EL0";
+    case 4: return "CNTVCT_EL0";
+    case 5: return "APPLE_IMPL_SYSREG";
+    default: return "(unknown)";
+    }
+}
+
+void HELPER(apple_log_subsys_sysreg)(CPUARMState *env, uint64_t pc,
+                                    uint32_t regid, uint64_t value,
+                                    uint32_t isread)
+{
+    if (!qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        return;
+    }
+
+    if (isread) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Phase6c: MRS %s pc=0x%llx EL=%d\n",
+                      apple_subsys_sysreg_name(regid),
+                      (unsigned long long)pc,
+                      arm_current_el(env));
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Phase6c: MSR %s value=0x%llx pc=0x%llx EL=%d\n",
+                      apple_subsys_sysreg_name(regid),
+                      (unsigned long long)value,
+                      (unsigned long long)pc,
+                      arm_current_el(env));
+    }
+
+    if (regid == 5) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Phase6c: APPLE_IMPL_SYSREG encoding=0x%llx\n",
+                      (unsigned long long)value);
+    }
+}
+
 void HELPER(pre_hvc)(CPUARMState *env)
 {
     ARMCPU *cpu = env_archcpu(env);
