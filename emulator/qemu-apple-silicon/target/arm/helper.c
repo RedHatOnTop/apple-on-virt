@@ -12053,6 +12053,10 @@ void arm_cpu_do_interrupt(CPUState *cs)
                       syn_get_ec(env->exception.syndrome),
                       env->exception.syndrome);
     }
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        qemu_log_mask(CPU_LOG_INT, "...with VBAR_EL%u 0x%" PRIx64 "\n",
+                      new_el, env->cp15.vbar_el[new_el]);
+    }
 
     if (tcg_enabled() && arm_is_psci_call(cpu, cs->exception_index)) {
         arm_handle_psci_call(cpu);

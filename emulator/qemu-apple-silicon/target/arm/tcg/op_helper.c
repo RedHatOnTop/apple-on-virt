@@ -1041,6 +1041,23 @@ void HELPER(apple_log_mmu_sysreg)(CPUARMState *env, uint64_t pc,
                   arm_current_el(env));
 }
 
+void HELPER(apple_log_vbar_sysreg)(CPUARMState *env, uint64_t pc,
+                                  uint32_t regid, uint64_t value,
+                                  uint32_t isread)
+{
+    if (!qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        return;
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Phase6b: %s VBAR_EL%d value=0x%llx pc=0x%llx EL=%d\n",
+                  isread ? "MRS" : "MSR",
+                  (int)regid,
+                  (unsigned long long)value,
+                  (unsigned long long)pc,
+                  arm_current_el(env));
+}
+
 void HELPER(pre_hvc)(CPUARMState *env)
 {
     ARMCPU *cpu = env_archcpu(env);

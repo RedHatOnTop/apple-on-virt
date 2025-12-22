@@ -2415,6 +2415,20 @@ static void handle_sys(DisasContext *s, bool isread,
         return;
     }
 
+    if (!isread && op0 == 3 && op1 == 0 && crn == 12 && crm == 0 && op2 == 0) {
+        /* VBAR_EL1 */
+        gen_helper_apple_log_vbar_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                        tcg_constant_i32(1), cpu_reg(s, rt),
+                                        tcg_constant_i32(0));
+    }
+
+    if (!isread && op0 == 3 && op1 == 6 && crn == 12 && crm == 0 && op2 == 0) {
+        /* VBAR_EL3 */
+        gen_helper_apple_log_vbar_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                        tcg_constant_i32(3), cpu_reg(s, rt),
+                                        tcg_constant_i32(0));
+    }
+
     if (crn == 11 || crn == 15) {
         /*
          * Check for TIDCP trap, which must take precedence over
