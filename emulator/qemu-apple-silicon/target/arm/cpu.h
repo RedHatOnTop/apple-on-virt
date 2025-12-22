@@ -727,6 +727,20 @@ typedef struct CPUArchState {
     /* Optional fault info across tlb lookup. */
     ARMMMUFaultInfo *tlb_fi;
 
+    /*
+     * Phase 8a: Minimal MMU Acceptance Layer state (cleared on reset)
+     *
+     * This is intentionally not a real MMU implementation; it only gates a
+     * small, hard-coded VA->PA acceptance mapping after the guest attempts
+     * to set SCTLR_EL1.M=1.
+     */
+    bool apple_mmu_acceptance_enabled;
+    bool apple_mmu_acceptance_logged_first_highva;
+    bool apple_mmu_acceptance_logged_first_post_mmu_fetch;
+    uint32_t apple_mmu_acceptance_log_budget;
+    uint64_t apple_mmu_acceptance_enable_pc;
+    uint64_t apple_mmu_acceptance_enable_sctlr;
+
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 

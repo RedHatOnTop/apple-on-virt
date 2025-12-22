@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "internals.h"
 #include "cpu-features.h"
@@ -296,6 +297,41 @@ void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
 
 #if !defined(CONFIG_USER_ONLY)
 
+static bool apple_mmu_acceptance_translate(vaddr va, hwaddr *pa, bool *is_high_va)
+{
+    /*
+     * Phase 8a: strict, hard-coded acceptance mapping.
+     *
+     * Allowed VA ranges:
+     *  1) High VA window: 0xffff_0000_0000_0000..0xffff_ffff_ffff_ffff
+     *     -> PA: DRAM_BASE + (VA - HIGH_BASE), bounded by DRAM_SIZE
+     *  2) Current execution region: DRAM_BASE..DRAM_BASE+DRAM_SIZE
+     *     -> identity mapping
+     */
+    const uint64_t DRAM_BASE = 0x800000000ULL;
+    const uint64_t DRAM_SIZE = 0x10000000ULL; /* 256MB */
+    const uint64_t HIGH_BASE = 0xffff000000000000ULL;
+
+    *is_high_va = false;
+
+    if (va >= HIGH_BASE) {
+        uint64_t off = va - HIGH_BASE;
+        if (off < DRAM_SIZE) {
+            *pa = DRAM_BASE + off;
+            *is_high_va = true;
+            return true;
+        }
+        return false;
+    }
+
+    if (va >= DRAM_BASE && va < DRAM_BASE + DRAM_SIZE) {
+        *pa = (hwaddr)va;
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * arm_cpu_do_transaction_failed: handle a memory system error response
  * (eg "no device/memory present at address") by raising an external abort
@@ -344,13 +380,62 @@ bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr address,
      */
     if (address & ((1 << memop_alignment_bits(memop)) - 1)) {
         fi->type = ARMFault_Alignment;
-    } else if (!get_phys_addr(&cpu->env, address, access_type, memop,
-                              core_to_arm_mmu_idx(&cpu->env, mmu_idx),
-                              &res, fi)) {
-        res.f.extra.arm.pte_attrs = res.cacheattrs.attrs;
-        res.f.extra.arm.shareability = res.cacheattrs.shareability;
-        *out = res.f;
-        return true;
+    } else {
+        CPUARMState *env = &cpu->env;
+        hwaddr pa;
+        bool is_high_va;
+
+        if (env->apple_mmu_acceptance_enabled &&
+            apple_mmu_acceptance_translate(address, &pa, &is_high_va)) {
+            /* Accepted: fill a basic TLB entry; no permissions/caching model. */
+            out->phys_addr = pa & TARGET_PAGE_MASK;
+            out->attrs = MEMTXATTRS_UNSPECIFIED;
+            out->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            out->lg_page_size = TARGET_PAGE_BITS;
+            out->extra.arm.pte_attrs = 0;
+            out->extra.arm.shareability = 0;
+
+            if (qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+                if (env->apple_mmu_acceptance_log_budget) {
+                    env->apple_mmu_acceptance_log_budget--;
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Phase8a: accept VA 0x%llx -> PA 0x%llx (%s, %s)\n",
+                                  (unsigned long long)address,
+                                  (unsigned long long)pa,
+                                  access_type == MMU_INST_FETCH ? "ifetch" :
+                                  (access_type == MMU_DATA_STORE ? "store" : "load"),
+                                  is_high_va ? "high-va" : "exec-region");
+                }
+
+                if (is_high_va && !env->apple_mmu_acceptance_logged_first_highva) {
+                    env->apple_mmu_acceptance_logged_first_highva = true;
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Phase8a: first accepted high-VA access VA 0x%llx -> PA 0x%llx\n",
+                                  (unsigned long long)address,
+                                  (unsigned long long)pa);
+                }
+
+                if (access_type == MMU_INST_FETCH &&
+                    !env->apple_mmu_acceptance_logged_first_post_mmu_fetch) {
+                    env->apple_mmu_acceptance_logged_first_post_mmu_fetch = true;
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Phase8a: first observed post-MMU instruction fetch VA 0x%llx -> PA 0x%llx\n",
+                                  (unsigned long long)address,
+                                  (unsigned long long)pa);
+                }
+            }
+
+            return true;
+        }
+
+        if (!get_phys_addr(env, address, access_type, memop,
+                           core_to_arm_mmu_idx(env, mmu_idx),
+                           &res, fi)) {
+            res.f.extra.arm.pte_attrs = res.cacheattrs.attrs;
+            res.f.extra.arm.shareability = res.cacheattrs.shareability;
+            *out = res.f;
+            return true;
+        }
     }
     if (probe) {
         return false;

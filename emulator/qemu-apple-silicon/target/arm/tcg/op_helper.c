@@ -1028,6 +1028,31 @@ void HELPER(apple_log_mmu_sysreg)(CPUARMState *env, uint64_t pc,
                                  uint32_t regid, uint64_t value,
                                  uint32_t isread)
 {
+    /*
+     * Phase 8a: observe the guest attempting to enable the MMU.
+     * We still stub the architectural sysreg behavior, but we use this write
+     * as the trigger for our minimal acceptance mapping layer.
+     */
+    if (!isread && regid == 1) { /* SCTLR_EL1 */
+        env->apple_mmu_acceptance_enable_sctlr = value;
+        if ((value & 1) && !env->apple_mmu_acceptance_enabled) {
+            env->apple_mmu_acceptance_enabled = true;
+            env->apple_mmu_acceptance_enable_pc = pc;
+            env->apple_mmu_acceptance_logged_first_highva = false;
+            env->apple_mmu_acceptance_logged_first_post_mmu_fetch = false;
+            env->apple_mmu_acceptance_log_budget = 64;
+
+            if (qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Phase8a: SCTLR_EL1.M=1 observed at pc=0x%llx; enabling minimal MMU acceptance layer\n",
+                              (unsigned long long)pc);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Phase8a: first post-MMU instruction assumed at pc=0x%llx\n",
+                              (unsigned long long)(pc + 4));
+            }
+        }
+    }
+
     if (!qemu_loglevel_mask(LOG_GUEST_ERROR)) {
         return;
     }
