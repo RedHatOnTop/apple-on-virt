@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
@@ -1008,6 +1009,36 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, const void *rip)
     }
 
     return res;
+}
+
+static const char *apple_mmu_sysreg_name(uint32_t regid)
+{
+    switch (regid) {
+    case 1: return "SCTLR_EL1";
+    case 2: return "TTBR0_EL1";
+    case 3: return "TTBR1_EL1";
+    case 4: return "TCR_EL1";
+    case 5: return "MAIR_EL1";
+    case 6: return "AMAIR_EL1";
+    default: return "(unknown)";
+    }
+}
+
+void HELPER(apple_log_mmu_sysreg)(CPUARMState *env, uint64_t pc,
+                                 uint32_t regid, uint64_t value,
+                                 uint32_t isread)
+{
+    if (!qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        return;
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Phase6a: %s %s value=0x%llx pc=0x%llx EL=%d (stubbed RAZ/WI)\n",
+                  isread ? "MRS" : "MSR",
+                  apple_mmu_sysreg_name(regid),
+                  (unsigned long long)value,
+                  (unsigned long long)pc,
+                  arm_current_el(env));
 }
 
 void HELPER(pre_hvc)(CPUARMState *env)

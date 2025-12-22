@@ -89,6 +89,9 @@ DEF_HELPER_2(get_cp_reg, i32, env, cptr)
 DEF_HELPER_3(set_cp_reg64, void, env, cptr, i64)
 DEF_HELPER_2(get_cp_reg64, i64, env, cptr)
 
+/* Phase 6a: logging-only MMU sysreg observation (no behavior change) */
+DEF_HELPER_5(apple_log_mmu_sysreg, void, env, i64, i32, i64, i32)
+
 DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
 

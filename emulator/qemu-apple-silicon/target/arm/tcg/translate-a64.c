@@ -2295,6 +2295,30 @@ static bool apple_interrupt_sysreg_stub(unsigned int op0, unsigned int op1,
  * - unexpected UNDEF traps
  * - accidentally enabling translation/page-table walks
  */
+static uint32_t apple_mmu_sysreg_stub_id(unsigned int crn, unsigned int crm,
+                                         unsigned int op2)
+{
+    if (crn == 1 && crm == 0 && op2 == 0) {
+        return 1; /* SCTLR_EL1 */
+    }
+    if (crn == 2 && crm == 0 && op2 == 0) {
+        return 2; /* TTBR0_EL1 */
+    }
+    if (crn == 2 && crm == 0 && op2 == 1) {
+        return 3; /* TTBR1_EL1 */
+    }
+    if (crn == 2 && crm == 0 && op2 == 2) {
+        return 4; /* TCR_EL1 */
+    }
+    if (crn == 10 && crm == 2 && op2 == 0) {
+        return 5; /* MAIR_EL1 */
+    }
+    if (crn == 10 && crm == 3 && op2 == 0) {
+        return 6; /* AMAIR_EL1 */
+    }
+    return 0;
+}
+
 static bool apple_cpu_sysreg_stub(unsigned int op0, unsigned int op1,
                                  unsigned int crn, unsigned int crm,
                                  unsigned int op2, uint64_t *read_val)
@@ -2371,6 +2395,20 @@ static void handle_sys(DisasContext *s, bool isread,
      * Must run before sysreg lookup so we can ignore MMU-enabling writes.
      */
     if (apple_cpu_sysreg_stub(op0, op1, crn, crm, op2, &stub_read_val)) {
+        uint32_t regid = apple_mmu_sysreg_stub_id(crn, crm, op2);
+        if (regid) {
+            if (isread) {
+                gen_helper_apple_log_mmu_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(regid),
+                                               tcg_constant_i64(stub_read_val),
+                                               tcg_constant_i32(1));
+            } else {
+                gen_helper_apple_log_mmu_sysreg(tcg_env, tcg_constant_i64(s->pc_curr),
+                                               tcg_constant_i32(regid),
+                                               cpu_reg(s, rt),
+                                               tcg_constant_i32(0));
+            }
+        }
         if (isread && rt != 31) {
             tcg_gen_movi_i64(cpu_reg(s, rt), stub_read_val);
         }
