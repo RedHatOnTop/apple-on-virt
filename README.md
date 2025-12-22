@@ -1,5 +1,14 @@
 # Apple-on-Virt: Apple Silicon arm64e Platform Reconstruction
 
+**This project is:** "A QEMU-based, heavily modified, single-purpose emulator targeting an Apple-like arm64e platform."
+
+**This project is NOT:**
+- A general-purpose QEMU fork
+- A collection of experimental machines
+- A best-effort macOS emulator
+
+**Phase 5 establishes sufficient hardware for kernel execution.**
+
 ## Project Identity
 
 Apple-on-Virt reconstructs the Apple Silicon platform to enable macOS arm64e execution. This is not generic ARM64 emulation, not a virtual machine, and not a compatibility layer. It is purpose-built platform reconstruction that synthesizes the exact hardware context, boot state, and platform identity that macOS expects from Apple Silicon.
