@@ -77,9 +77,7 @@ _start:
     /* Marker after accepted high-VA access */
     EMIT2 0x50, 0x32                      /* 'P''2' */
 
-    /* Out-of-contract access: should fault and move FAR/ELR */
-    movz    x6, #0
-    ldr     x7, [x6]
+    /* Phase 9b: remove deliberate out-of-contract NULL deref (observation-only). */
 
 hang:
     wfi
