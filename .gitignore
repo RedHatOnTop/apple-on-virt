@@ -95,6 +95,10 @@ temp/
 # Output directory (except .gitkeep)
 output/*
 !output/.gitkeep
+# Phase analysis outputs (tracked)
+!output/phase10/
+!output/phase10/phase10d/
+!output/phase10/phase10d/*.md
 
 # Local storage (IPSW and reference repos)
 local_storage/**
