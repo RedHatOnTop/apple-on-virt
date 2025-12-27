@@ -1,0 +1,37 @@
+entries=342
+vmaddr_min=0xfffffe000700c000
+vmaddr_max=0xfffffe0007c70000
+-- first 15 --
+com.apple.AGXFirmwareKextG13GRTBuddy	vmaddr=0xfffffe000700c000	fileoff=0x8000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.AGXFirmwareKextRTBuddy64	vmaddr=0xfffffe0007150000	fileoff=0x14c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.AGXG13G	vmaddr=0xfffffe0007154000	fileoff=0x150000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.nke.applicationfirewall	vmaddr=0xfffffe0007160000	fileoff=0x15c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.AUC	vmaddr=0xfffffe0007164000	fileoff=0x160000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleA7IOP	vmaddr=0xfffffe0007168000	fileoff=0x164000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleAHCIPort	vmaddr=0xfffffe000716c000	fileoff=0x168000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleALSColorSensor	vmaddr=0xfffffe0007170000	fileoff=0x16c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleAOPAudio	vmaddr=0xfffffe0007174000	fileoff=0x170000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleAOPVoiceTrigger	vmaddr=0xfffffe0007180000	fileoff=0x17c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.iokit.AppleARMIISAudio	vmaddr=0xfffffe0007184000	fileoff=0x180000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleARMPMU	vmaddr=0xfffffe000718c000	fileoff=0x188000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleARMPlatform	vmaddr=0xfffffe0007190000	fileoff=0x18c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleAVD	vmaddr=0xfffffe000719c000	fileoff=0x198000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.AppleAVE2	vmaddr=0xfffffe00071c0000	fileoff=0x1bc000	inner_magic=0xfeedfacf	cmd=0x80000035
+-- last 15 --
+com.apple.kec.corecrypto	vmaddr=0xfffffe0007bfc000	fileoff=0xbf8000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.exfat	vmaddr=0xfffffe0007c18000	fileoff=0xc14000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.iPodDriver	vmaddr=0xfffffe0007c1c000	fileoff=0xc18000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.iPodSBCDriver	vmaddr=0xfffffe0007c20000	fileoff=0xc1c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.msdosfs	vmaddr=0xfffffe0007c24000	fileoff=0xc20000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.ntfs	vmaddr=0xfffffe0007c28000	fileoff=0xc24000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.kec.pthread	vmaddr=0xfffffe0007c40000	fileoff=0xc3c000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.smbfs	vmaddr=0xfffffe0007c44000	fileoff=0xc40000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.tmpfs	vmaddr=0xfffffe0007c54000	fileoff=0xc50000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.kext.triggers	vmaddr=0xfffffe0007c58000	fileoff=0xc54000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.udf	vmaddr=0xfffffe0007c5c000	fileoff=0xc58000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.vecLib.kext	vmaddr=0xfffffe0007c64000	fileoff=0xc60000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.driver.watchdog	vmaddr=0xfffffe0007c68000	fileoff=0xc64000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.filesystems.webdav	vmaddr=0xfffffe0007c6c000	fileoff=0xc68000	inner_magic=0xfeedfacf	cmd=0x80000035
+com.apple.kernel	vmaddr=0xfffffe0007c70000	fileoff=0xc6c000	inner_magic=0xfeedfacf	cmd=0x80000035
+-- inner_magic counts --
+0xfeedfacf count=342

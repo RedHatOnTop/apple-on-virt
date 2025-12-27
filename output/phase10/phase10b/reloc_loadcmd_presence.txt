@@ -1,0 +1,20 @@
+LC_DYLD_INFO (0x00000022) present=False
+LC_DYLD_INFO_ONLY (0x80000022) present=False
+LC_SEGMENT_SPLIT_INFO (0x0000001e) present=False
+LC_REEXPORT_DYLIB (0x0000001f) present=False
+LC_NOTE (0x00000031) present=False
+LC_UUID (0x0000001b) present=True
+LC_BUILD_VERSION (0x00000032) present=True
+LC_DYLD_CHAINED_FIXUPS (0x80000034) present=True
+chained_fixups_linkedit=(101466112, 2546)
+dyld_chained_fixups_header:
+  version=0
+  starts_offset=0x1c
+  imports_offset=0x9f2
+  symbols_offset=0x9f2
+  imports_count=0
+  imports_format=1
+  symbols_format=0
+  starts_offset_within_datasize=True
+  imports_offset_within_datasize=False
+  symbols_offset_within_datasize=False

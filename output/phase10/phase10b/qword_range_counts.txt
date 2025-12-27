@@ -1,0 +1,3 @@
+total_qwords=12685312
+qwords_in_kernel_va_span=203065
+fraction=0.016008

@@ -1,0 +1,10 @@
+mach_o_filetype=12
+cputype=16777228 cpusubtype=2
+entry_pc=0xfffffe0007d44528
+entry_sp=0x0
+entry_cpsr=0x0
+entry_minus_high_base=0xfe0007d44528
+min_va=0xfffffe0007004000
+max_va=0xfffffe000d0cc000
+va_span=0x60c8000 (101482496 dec)
+entry_in=('__TEXT_EXEC', 869672)

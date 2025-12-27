@@ -1,0 +1,7 @@
+magic=0xfeedfacf filetype=12 ncmds=353 sizeofcmds=25144
+cmd=0x00000005 count=1
+cmd=0x00000019 count=7
+cmd=0x0000001b count=1
+cmd=0x00000032 count=1
+cmd=0x80000034 count=1
+cmd=0x80000035 count=342

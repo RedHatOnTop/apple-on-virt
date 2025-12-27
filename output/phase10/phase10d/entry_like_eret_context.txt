@@ -1,0 +1,164 @@
+=== context around line 15529 ===
+0x0000f200: 52cf0b70	adr	x18, #0x26beb
+0x0000f204: 00000000	udf	#0
+0x0000f208: 7f2303d5	pacibsp	
+0x0000f20c: f40f1ef8	str	x20, [sp, #-0x20]!
+0x0000f210: fd7b01a9	stp	x29, x30, [sp, #0x10]
+0x0000f214: fd030091	mov	x29, sp
+0x0000f218: f40300aa	mov	x20, x0
+0x0000f21c: 000080d2	mov	x0, #0
+0x0000f220: 604218d5	msr	pan, x0
+0x0000f224: ff4403d5	msr	daifclr, #4
+0x0000f228: 9f3f03d5	dsb	sy
+0x0000f22c: df3f03d5	isb	
+0x0000f230: 65c4ff97	bl	#0x3c4
+0x0000f234: 6cc4ff97	bl	#0x3e4
+0x0000f238: e00314aa	mov	x0, x20
+0x0000f23c: 617a0094	bl	#0x2dbc0
+0x0000f240: e0031faa	mov	x0, xzr
+0x0000f244: 00007db2	orr	x0, x0, #8
+0x0000f248: 000040b2	orr	x0, x0, #1
+0x0000f24c: 00006db2	orr	x0, x0, #0x80000
+0x0000f250: 00007eb2	orr	x0, x0, #4
+0x0000f254: 000074b2	orr	x0, x0, #0x1000
+0x0000f258: 000066b2	orr	x0, x0, #0x4000000
+0x0000f25c: 00006eb2	orr	x0, x0, #0x40000
+0x0000f260: 000070b2	orr	x0, x0, #0x10000
+0x0000f264: 000072b2	orr	x0, x0, #0x4000
+0x0000f268: 000077b2	orr	x0, x0, #0x200
+0x0000f26c: 000069b2	orr	x0, x0, #0x800000
+0x0000f270: 1f000094	bl	#0xf2ec
+0x0000f274: 7a780094	bl	#0x2d45c
+0x0000f278: 00e138d5	mrs	x0, cntkctl_el1
+0x0000f27c: 000040b2	orr	x0, x0, #1
+0x0000f280: 000077b2	orr	x0, x0, #0x200
+0x0000f284: 000078b2	orr	x0, x0, #0x100
+0x0000f288: 00007fb2	orr	x0, x0, #2
+0x0000f28c: 00e118d5	msr	cntkctl_el1, x0
+0x0000f290: 001880d2	mov	x0, #0xc0
+0x0000f294: 004018d5	msr	spsr_el1, x0
+0x0000f298: 60000010	adr	x0, #0xf2a4
+0x0000f29c: 204018d5	msr	elr_el1, x0
+0x0000f2a0: e0039fd6	eret	
+0x0000f2a4: fd7b41a9	ldp	x29, x30, [sp, #0x10]
+0x0000f2a8: f40742f8	ldr	x20, [sp], #0x20
+0x0000f2ac: ff0f5fd6	retab	
+0x0000f2b0: 001038d5	mrs	x0, sctlr_el1
+0x0000f2b4: 00f86592	and	x0, x0, #0xfffffffffbffffff
+0x0000f2b8: 00f86d92	and	x0, x0, #0xfffffffffffbffff
+0x0000f2bc: 00f86f92	and	x0, x0, #0xfffffffffffeffff
+0x0000f2c0: 00f87192	and	x0, x0, #0xffffffffffffbfff
+0x0000f2c4: 00f87692	and	x0, x0, #0xfffffffffffffdff
+0x0000f2c8: 00f86892	and	x0, x0, #0xffffffffff7fffff
+0x0000f2cc: 001018d5	msr	sctlr_el1, x0
+0x0000f2d0: 00e138d5	mrs	x0, cntkctl_el1
+0x0000f2d4: 00f87f92	and	x0, x0, #0xfffffffffffffffe
+0x0000f2d8: 00f87692	and	x0, x0, #0xfffffffffffffdff
+0x0000f2dc: 00f87792	and	x0, x0, #0xfffffffffffffeff
+0x0000f2e0: 00f87e92	and	x0, x0, #0xfffffffffffffffd
+0x0000f2e4: 00e118d5	msr	cntkctl_el1, x0
+0x0000f2e8: c0035fd6	ret	
+0x0000f2ec: 001018d5	msr	sctlr_el1, x0
+0x0000f2f0: 9f3f03d5	dsb	sy
+0x0000f2f4: df3f03d5	isb	
+0x0000f2f8: e10300aa	mov	x1, x0
+0x0000f2fc: 000040b2	orr	x0, x0, #1
+0x0000f300: 00006db2	orr	x0, x0, #0x80000
+0x0000f304: 1f0001eb	cmp	x0, x1
+0x0000f308: 21ffff54	b.ne	#0xf2ec
+0x0000f30c: a1f7ff58	ldr	x1, #0xf200
+0x0000f310: 02004092	and	x2, x0, #1
+0x0000f314: 22000039	strb	w2, [x1]
+0x0000f318: c0035fd6	ret	
+0x0000f31c: 00a218d5	msr	mair_el1, x0
+0x0000f320: df3f03d5	isb	
+0x0000f324: c0035fd6	ret	
+0x0000f328: 402018d5	msr	tcr_el1, x0
+0x0000f32c: df3f03d5	isb	
+0x0000f330: c0035fd6	ret	
+0x0000f334: 002018d5	msr	ttbr0_el1, x0
+0x0000f338: df3f03d5	isb	
+0x0000f33c: c0035fd6	ret	
+0x0000f340: 401038d5	mrs	x0, cpacr_el1
+=== context around line 16510 ===
+0x00010154: eebf50ad	ldp	q14, q15, [sp, #0x210]
+0x00010158: f0c751ad	ldp	q16, q17, [sp, #0x230]
+0x0001015c: f2cf52ad	ldp	q18, q19, [sp, #0x250]
+0x00010160: f4d753ad	ldp	q20, q21, [sp, #0x270]
+0x00010164: f6df54ad	ldp	q22, q23, [sp, #0x290]
+0x00010168: f8e755ad	ldp	q24, q25, [sp, #0x2b0]
+0x0001016c: faef56ad	ldp	q26, q27, [sp, #0x2d0]
+0x00010170: fcf757ad	ldp	q28, q29, [sp, #0x2f0]
+0x00010174: feff58ad	ldp	q30, q31, [sp, #0x310]
+0x00010178: e33343b9	ldr	w3, [sp, #0x330]
+0x0001017c: 23441bd5	msr	fpsr, x3
+0x00010180: e43743b9	ldr	w4, [sp, #0x334]
+0x00010184: 04441bd5	msr	fpcr, x4
+0x00010188: e08740f9	ldr	x0, [sp, #0x108]
+0x0001018c: e017c1da	autib	x0, sp
+0x00010190: 204018d5	msr	elr_el1, x0
+0x00010194: e10341b9	ldr	w1, [sp, #0x100]
+0x00010198: 014018d5	msr	spsr_el1, x1
+0x0001019c: e00740a9	ldp	x0, x1, [sp]
+0x000101a0: e20f41a9	ldp	x2, x3, [sp, #0x10]
+0x000101a4: e41742a9	ldp	x4, x5, [sp, #0x20]
+0x000101a8: e61f43a9	ldp	x6, x7, [sp, #0x30]
+0x000101ac: e82744a9	ldp	x8, x9, [sp, #0x40]
+0x000101b0: ea2f45a9	ldp	x10, x11, [sp, #0x50]
+0x000101b4: ec3746a9	ldp	x12, x13, [sp, #0x60]
+0x000101b8: ee3f47a9	ldp	x14, x15, [sp, #0x70]
+0x000101bc: f04748a9	ldp	x16, x17, [sp, #0x80]
+0x000101c0: f24f49a9	ldp	x18, x19, [sp, #0x90]
+0x000101c4: f4574aa9	ldp	x20, x21, [sp, #0xa0]
+0x000101c8: f65f4ba9	ldp	x22, x23, [sp, #0xb0]
+0x000101cc: f8674ca9	ldp	x24, x25, [sp, #0xc0]
+0x000101d0: fa6f4da9	ldp	x26, x27, [sp, #0xd0]
+0x000101d4: fc7340f9	ldr	x28, [sp, #0xe0]
+0x000101d8: fdfb4ea9	ldp	x29, x30, [sp, #0xe8]
+0x000101dc: bf4100d5	msr	spsel, #1
+0x000101e0: e007bfa9	stp	x0, x1, [sp, #-0x10]!
+0x000101e4: 004138d5	mrs	x0, sp_el0
+0x000101e8: 017c40f9	ldr	x1, [x0, #0xf8]
+0x000101ec: 014118d5	msr	sp_el0, x1
+0x000101f0: e007c1a8	ldp	x0, x1, [sp], #0x10
+0x000101f4: e0039fd6	eret	
+0x000101f8: df4303d5	msr	daifset, #3
+0x000101fc: df3f03d5	isb	
+0x00010200: c0035fd6	ret	
+0x00010204: 7f2303d5	pacibsp	
+0x00010208: fd7bbfa9	stp	x29, x30, [sp, #-0x10]!
+0x0001020c: fd030091	mov	x29, sp
+0x00010210: ff4303d5	msr	daifclr, #3
+0x00010214: df3f03d5	isb	
+0x00010218: fd7bc1a8	ldp	x29, x30, [sp], #0x10
+0x0001021c: ff0f5fd6	retab	
+0x00010220: 7f2303d5	pacibsp	
+0x00010224: fd7bbfa9	stp	x29, x30, [sp, #-0x10]!
+0x00010228: b0780094	bl	#0x2e4e8
+0x0001022c: 004038d5	mrs	x0, spsr_el1
+0x00010230: 00f47c92	and	x0, x0, #0xfffffffffffffff3
+0x00010234: 004018d5	msr	spsr_el1, x0
+0x00010238: 60000010	adr	x0, #0x10244
+0x0001023c: 204018d5	msr	elr_el1, x0
+0x00010240: e0039fd6	eret	
+0x00010244: fd7bc1a8	ldp	x29, x30, [sp], #0x10
+0x00010248: ff0f5fd6	retab	
+0x0001024c: 7f2303d5	pacibsp	
+0x00010250: fd7bbfa9	stp	x29, x30, [sp, #-0x10]!
+0x00010254: f30300aa	mov	x19, x0
+0x00010258: f40301aa	mov	x20, x1
+0x0001025c: 90780094	bl	#0x2e49c
+0x00010260: e00313aa	mov	x0, x19
+0x00010264: e10314aa	mov	x1, x20
+0x00010268: 024038d5	mrs	x2, spsr_el1
+0x0001026c: 42f47c92	and	x2, x2, #0xfffffffffffffff3
+0x00010270: 42087ab2	orr	x2, x2, #0x1c0
+0x00010274: 024018d5	msr	spsr_el1, x2
+0x00010278: 62000010	adr	x2, #0x10284
+0x0001027c: 224018d5	msr	elr_el1, x2
+0x00010280: e0039fd6	eret	
+0x00010284: 3f083fd6	blraaz	x1
+0x00010288: 60c0ff17	b	#0x408
+0x0001028c: 014038d5	mrs	x1, spsr_el1
+0x00010290: 21f47c92	and	x1, x1, #0xfffffffffffffff3
+0x00010294: 21047ab2	orr	x1, x1, #0xc0
